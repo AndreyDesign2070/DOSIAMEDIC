@@ -99,18 +99,34 @@ app.get('/api/licenses', (req: Request, res: Response) => {
   res.json({ licenses });
 });
 
-// Admin API: Create a license
+// Admin API: Create or Upsert a license
 app.post('/api/licenses', (req: Request, res: Response) => {
   const { key, doctorName, username, password, status, maxActivations } = req.body;
   
   if (!key || !doctorName || !username || !password) {
-    res.status(400).json({ error: 'Faltan campos obligatorios' });
+    res.status(400).json({ error: 'Faltan campos obligatorios (nombre, cédula, contraseña, clave)' });
     return;
   }
 
-  const exists = licenses.some(l => l.key === key || l.username === username);
-  if (exists) {
-    res.status(400).json({ error: 'La licencia o el usuario (cédula) ya existe' });
+  const existingKeyIndex = licenses.findIndex(l => l.key === key);
+  const existingUserIndex = licenses.findIndex(l => l.username === username);
+
+  if (existingKeyIndex !== -1) {
+    // Update existing key
+    licenses[existingKeyIndex] = {
+      ...licenses[existingKeyIndex],
+      doctorName,
+      username,
+      password,
+      status: status || licenses[existingKeyIndex].status || 'Activa'
+    };
+    saveLicenses();
+    res.json({ message: 'Licencia actualizada con éxito', license: licenses[existingKeyIndex] });
+    return;
+  }
+
+  if (existingUserIndex !== -1) {
+    res.status(400).json({ error: 'La cédula de identidad ingresada ya pertenece a un usuario registrado.' });
     return;
   }
 
@@ -135,7 +151,7 @@ app.post('/api/licenses/toggle', (req: Request, res: Response) => {
   const { key } = req.body;
   const lic = licenses.find(l => l.key === key);
   if (!lic) {
-    res.status(404).json({ error: 'Licencia no encontrada' });
+    res.json({ message: 'Licencia no encontrada en servidor, actualización local realizada.' });
     return;
   }
 
@@ -149,7 +165,7 @@ app.post('/api/licenses/transfer', (req: Request, res: Response) => {
   const { key, newDeviceId } = req.body;
   const lic = licenses.find(l => l.key === key);
   if (!lic) {
-    res.status(404).json({ error: 'Licencia no encontrada' });
+    res.json({ message: 'Licencia no encontrada en servidor, reinicio local realizado.' });
     return;
   }
 
@@ -165,14 +181,27 @@ app.post('/api/licenses/update', (req: Request, res: Response) => {
     res.status(400).json({ error: 'Falta la clave original para identificar la licencia' });
     return;
   }
-  const licIndex = licenses.findIndex(l => l.key === originalKey);
+  let licIndex = licenses.findIndex(l => l.key === originalKey);
+  
   if (licIndex === -1) {
-    res.status(404).json({ error: 'Licencia no encontrada' });
+    const newLic = {
+      key: key || originalKey,
+      doctorName: doctorName || 'Médico',
+      username: username || '',
+      password: password || '',
+      purchaseDate: new Date().toISOString().split('T')[0],
+      status: status || 'Activa',
+      maxActivations: 1,
+      activatedDeviceId: null
+    };
+    licenses.push(newLic);
+    saveLicenses();
+    res.json({ message: 'Licencia guardada con éxito', license: newLic });
     return;
   }
 
   if (key && key !== originalKey) {
-    const keyExists = licenses.some(l => l.key === key);
+    const keyExists = licenses.some((l, idx) => l.key === key && idx !== licIndex);
     if (keyExists) {
       res.status(400).json({ error: 'La nueva clave de licencia ya está registrada' });
       return;
@@ -180,7 +209,7 @@ app.post('/api/licenses/update', (req: Request, res: Response) => {
   }
 
   if (username && username !== licenses[licIndex].username) {
-    const userExists = licenses.some(l => l.username === username);
+    const userExists = licenses.some((l, idx) => l.username === username && idx !== licIndex);
     if (userExists) {
       res.status(400).json({ error: 'La nueva cédula (usuario) ya está registrada' });
       return;
@@ -205,13 +234,10 @@ app.post('/api/licenses/delete', (req: Request, res: Response) => {
     return;
   }
   const licIndex = licenses.findIndex(l => l.key === key);
-  if (licIndex === -1) {
-    res.status(404).json({ error: 'Licencia no encontrada' });
-    return;
+  if (licIndex !== -1) {
+    licenses.splice(licIndex, 1);
+    saveLicenses();
   }
-
-  licenses.splice(licIndex, 1);
-  saveLicenses();
   res.json({ message: 'Licencia eliminada con éxito' });
 });
 

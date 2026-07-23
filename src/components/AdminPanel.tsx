@@ -169,7 +169,11 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       }
 
       if (!res.ok) {
-        apiError = data.error || `Error en el servidor (${res.status})`;
+        if (data && data.error) {
+          apiError = data.error;
+        } else {
+          console.warn(`Server responded with HTTP status ${res.status}, continuing with local registration.`);
+        }
       } else {
         serverSuccess = true;
       }
