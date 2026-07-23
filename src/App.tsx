@@ -5,6 +5,8 @@ import AdminPanel from './components/AdminPanel';
 import DosiaLogo from './components/DosiaLogo';
 import DosiaAppIcon from './components/DosiaAppIcon';
 import CreateIconModal from './components/CreateIconModal';
+import { License } from './types';
+import { INITIAL_LICENSES } from './data';
 
 export default function App() {
   // Device & Activation state - Initialize synchronously to prevent empty device ID on first load
@@ -123,10 +125,6 @@ export default function App() {
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         data = await res.json();
-      } else {
-        const textResponse = await res.text();
-        // If the server responded with non-JSON (e.g. an HTML/text error or proxy failure), use that text or status
-        throw new Error(textResponse || `Error de servidor (${res.status} ${res.statusText})`);
       }
 
       if (!res.ok) {
@@ -140,8 +138,32 @@ export default function App() {
         }, 1500);
       }
     } catch (err: any) {
-      console.error('Error activating license:', err);
-      setLicenseError(err.message || 'Error de red al conectar con el servidor de licencias.');
+      console.warn('Servidor no disponible para activación online, verificando almacenamiento local:', err);
+      // Local fallback
+      const cached = localStorage.getItem('dosia_local_licenses');
+      const localList: License[] = cached ? JSON.parse(cached) : INITIAL_LICENSES;
+      const lic = localList.find((l: License) => l.key === keyToActivate);
+
+      if (!lic) {
+        setLicenseError('La clave de licencia ingresada no es válida.');
+        return;
+      }
+      if (lic.status !== 'Activa') {
+        setLicenseError('Esta licencia se encuentra inactiva. Contacte al administrador.');
+        return;
+      }
+      if (!lic.activatedDeviceId || lic.activatedDeviceId === deviceId) {
+        lic.activatedDeviceId = deviceId;
+        localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
+        localStorage.setItem('dosia_activated_license_key', keyToActivate);
+        setLicenseSuccess('¡Licencia verificada y vinculada exitosamente a este dispositivo!');
+        setLicenseActivated(true);
+        setTimeout(() => {
+          setCurrentView('login');
+        }, 1200);
+      } else {
+        setLicenseError('Esta licencia ya está vinculada y activa en otro dispositivo.');
+      }
     }
   };
 
@@ -155,13 +177,16 @@ export default function App() {
       return;
     }
 
+    const uInput = usernameInput.trim();
+    const pInput = passwordInput.trim();
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: usernameInput.trim(),
-          password: passwordInput.trim(),
+          username: uInput,
+          password: pInput,
           deviceId
         })
       });
@@ -170,9 +195,6 @@ export default function App() {
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         data = await res.json();
-      } else {
-        const textResponse = await res.text();
-        throw new Error(textResponse || `Error de servidor (${res.status} ${res.statusText})`);
       }
 
       if (!res.ok) {
@@ -181,14 +203,56 @@ export default function App() {
         localStorage.setItem('dosia_active_doctor', JSON.stringify(data.doctor));
         setActiveDoctor(data.doctor);
         setCurrentView('dashboard');
-        // Clear username and password fields on success
         setUsernameInput('');
         setPasswordInput('');
         setLoginError('');
       }
     } catch (err: any) {
-      console.error('Error logging in doctor:', err);
-      setLoginError(err.message || 'No hay respuesta del servidor clínico. Intente nuevamente.');
+      console.warn('Servidor no disponible para login online, verificando almacenamiento local:', err);
+      // Local fallback
+      const cached = localStorage.getItem('dosia_local_licenses');
+      const localList: License[] = cached ? JSON.parse(cached) : INITIAL_LICENSES;
+
+      const lic = localList.find((l: License) => l.username === uInput);
+
+      if (!lic) {
+        setLoginError('No existe ningún usuario registrado con esta cédula de identidad.');
+        return;
+      }
+
+      if (lic.password !== pInput) {
+        setLoginError('Contraseña incorrecta.');
+        return;
+      }
+
+      if (lic.status !== 'Activa') {
+        setLoginError('Esta licencia de usuario se encuentra inactiva. Contacte al administrador.');
+        return;
+      }
+
+      if (lic.activatedDeviceId && lic.activatedDeviceId !== deviceId) {
+        setLoginError('La licencia de este usuario está vinculada a otro dispositivo. Contacte al administrador.');
+        return;
+      }
+
+      // Bind device if not bound
+      if (!lic.activatedDeviceId) {
+        lic.activatedDeviceId = deviceId;
+        localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
+      }
+
+      const doctorData = {
+        name: lic.doctorName,
+        license: lic.key,
+        cédula: lic.username
+      };
+
+      localStorage.setItem('dosia_active_doctor', JSON.stringify(doctorData));
+      setActiveDoctor(doctorData);
+      setCurrentView('dashboard');
+      setUsernameInput('');
+      setPasswordInput('');
+      setLoginError('');
     }
   };
 

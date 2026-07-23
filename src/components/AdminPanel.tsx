@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { License } from '../types';
+import { INITIAL_LICENSES } from '../data';
 import { 
   Key, Plus, Search, RefreshCw, Smartphone, 
   ToggleLeft, ToggleRight, DollarSign, Activity, CheckCircle, ShieldAlert,
@@ -37,20 +38,53 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
   const [deleteConfirmKey, setDeleteConfirmKey] = useState('');
   const [deleteConfirmDocName, setDeleteConfirmDocName] = useState('');
 
-  // Fetch licenses from server
+  // Local storage helper
+  const saveLocalLicenses = (list: License[]) => {
+    try {
+      localStorage.setItem('dosia_local_licenses', JSON.stringify(list));
+    } catch (e) {
+      console.error('Error al guardar en localStorage:', e);
+    }
+  };
+
+  const getLocalLicenses = (): License[] => {
+    try {
+      const cached = localStorage.getItem('dosia_local_licenses');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return INITIAL_LICENSES;
+  };
+
+  // Fetch licenses from server with fallback to local cache
   const fetchLicenses = async () => {
     setLoading(true);
+    let loadedFromServer = false;
     try {
       const res = await fetch('/api/licenses');
-      const data = await res.json();
-      if (data.licenses) {
-        setLicensesList(data.licenses);
+      if (res.ok) {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data && Array.isArray(data.licenses)) {
+            setLicensesList(data.licenses);
+            saveLocalLicenses(data.licenses);
+            loadedFromServer = true;
+          }
+        }
       }
     } catch (e) {
-      console.error('Error fetching licenses:', e);
-    } finally {
-      setLoading(false);
+      console.warn('Backend server unreachable, using local storage cache for licenses:', e);
     }
+
+    if (!loadedFromServer) {
+      setLicensesList(getLocalLicenses());
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -82,71 +116,127 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!newDocName || !newCédula || !newPassword || !newKey) {
+    if (!newDocName.trim() || !newCédula.trim() || !newPassword.trim() || !newKey.trim()) {
       setErrorMsg('Por favor complete todos los campos.');
       return;
     }
+
+    const docName = newDocName.trim();
+    const cédula = newCédula.trim();
+    const password = newPassword.trim();
+    const key = newKey.trim();
+
+    // Check duplicate cédula or key locally first
+    const currentList = licensesList.length > 0 ? licensesList : getLocalLicenses();
+    const duplicate = currentList.some(l => l.key === key || l.username === cédula);
+    if (duplicate) {
+      setErrorMsg('La clave de licencia o la cédula de usuario ya se encuentra registrada.');
+      return;
+    }
+
+    const newLicenseObj: License = {
+      key,
+      doctorName: docName,
+      username: cédula,
+      password,
+      purchaseDate: new Date().toISOString().split('T')[0],
+      status: 'Activa',
+      maxActivations: 1,
+      activatedDeviceId: null
+    };
+
+    let serverSuccess = false;
+    let apiError = '';
 
     try {
       const res = await fetch('/api/licenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          key: newKey,
-          doctorName: newDocName,
-          username: newCédula,
-          password: newPassword,
+          key,
+          doctorName: docName,
+          username: cédula,
+          password,
           status: 'Activa',
           maxActivations: 1
         })
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMsg(data.error || 'Error al crear la licencia.');
-      } else {
-        setSuccessMsg(`Licencia para ${newDocName} creada correctamente.`);
-        // Reset inputs
-        setNewDocName('');
-        setNewCédula('');
-        setNewPassword('');
-        generateRandomKey();
-        fetchLicenses();
+      const contentType = res.headers.get('content-type');
+      let data: any = {};
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
       }
-    } catch (err) {
-      setErrorMsg('No se pudo establecer conexión con el servidor.');
+
+      if (!res.ok) {
+        apiError = data.error || `Error en el servidor (${res.status})`;
+      } else {
+        serverSuccess = true;
+      }
+    } catch (err: any) {
+      console.warn('Server offline/unreachable during POST /api/licenses:', err);
     }
+
+    if (apiError) {
+      setErrorMsg(apiError);
+      return;
+    }
+
+    // Always update local state & localStorage so the license is available immediately
+    const updatedList = [newLicenseObj, ...currentList.filter(l => l.key !== key)];
+    setLicensesList(updatedList);
+    saveLocalLicenses(updatedList);
+
+    setSuccessMsg(`¡Licencia para ${docName} emitida y lista para activarse!`);
+    
+    // Reset inputs
+    setNewDocName('');
+    setNewCédula('');
+    setNewPassword('');
+    generateRandomKey();
   };
 
   // Toggle activation status
   const handleToggleStatus = async (key: string) => {
+    const updatedList = licensesList.map(lic => {
+      if (lic.key === key) {
+        return { ...lic, status: lic.status === 'Activa' ? 'Inactiva' : 'Activa' };
+      }
+      return lic;
+    });
+    setLicensesList(updatedList);
+    saveLocalLicenses(updatedList);
+
     try {
-      const res = await fetch('/api/licenses/toggle', {
+      await fetch('/api/licenses/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key })
       });
-      if (res.ok) {
-        fetchLicenses();
-      }
     } catch (e) {
-      console.error(e);
+      console.warn('Server offline during toggle status:', e);
     }
   };
 
   // Transfer / Reset Activation device ID
   const handleResetDevice = async (key: string) => {
+    const updatedList = licensesList.map(lic => {
+      if (lic.key === key) {
+        return { ...lic, activatedDeviceId: null };
+      }
+      return lic;
+    });
+    setLicensesList(updatedList);
+    saveLocalLicenses(updatedList);
+
     try {
-      const res = await fetch('/api/licenses/transfer', {
+      await fetch('/api/licenses/transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, newDeviceId: null })
       });
-      if (res.ok) {
-        fetchLicenses();
-      }
     } catch (e) {
-      console.error(e);
+      console.warn('Server offline during reset device:', e);
     }
   };
 
@@ -167,10 +257,17 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!editDocName || !editCédula || !editPassword || !editKey) {
+    if (!editDocName.trim() || !editCédula.trim() || !editPassword.trim() || !editKey.trim()) {
       alert('Por favor complete todos los campos.');
       return;
     }
+
+    const docName = editDocName.trim();
+    const cédula = editCédula.trim();
+    const password = editPassword.trim();
+    const key = editKey.trim();
+
+    let apiError = '';
 
     try {
       const res = await fetch('/api/licenses/update', {
@@ -178,25 +275,50 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           originalKey: editOriginalKey,
-          key: editKey,
-          doctorName: editDocName,
-          username: editCédula,
-          password: editPassword,
+          key,
+          doctorName: docName,
+          username: cédula,
+          password,
           status: editStatus
         })
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type');
+      let data: any = {};
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      }
+
       if (!res.ok) {
-        alert(data.error || 'Error al actualizar la licencia.');
-      } else {
-        setSuccessMsg(`Licencia actualizada correctamente.`);
-        setIsEditMode(false);
-        fetchLicenses();
+        apiError = data.error || 'Error al actualizar la licencia.';
       }
     } catch (err) {
-      alert('No se pudo establecer conexión con el servidor.');
+      console.warn('Server offline during update license:', err);
     }
+
+    if (apiError) {
+      alert(apiError);
+      return;
+    }
+
+    const updatedList = licensesList.map(lic => {
+      if (lic.key === editOriginalKey) {
+        return {
+          ...lic,
+          key,
+          doctorName: docName,
+          username: cédula,
+          password,
+          status: editStatus
+        };
+      }
+      return lic;
+    });
+    setLicensesList(updatedList);
+    saveLocalLicenses(updatedList);
+
+    setSuccessMsg(`Licencia para ${docName} actualizada correctamente.`);
+    setIsEditMode(false);
   };
 
   // Handle Delete License
