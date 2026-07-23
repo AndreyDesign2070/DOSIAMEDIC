@@ -17,7 +17,7 @@
     "purchaseDate": "2026-06-20",
     "status": "Activa",
     "maxActivations": 1,
-    "activatedDeviceId": "simulated-phone-maria"
+    "activatedDeviceId": null
   },
   {
     "key": "MED-1A2B-3C4D-5E6F",
@@ -30,23 +30,13 @@
     "activatedDeviceId": null
   },
   {
-    "key": "MED-TEST-1234-5678",
-    "doctorName": "Dra. Martha Bravo",
-    "username": "1309405809",
-    "password": "medmartha123",
+    "key": "MED-TEST-DOCTOR-99",
+    "doctorName": "Dr. Carlos Mendoza",
+    "username": "1718293849",
+    "password": "medcarlos123",
     "purchaseDate": "2026-07-23",
     "status": "Activa",
     "maxActivations": 1,
-    "activatedDeviceId": null
-  },
-  {
-    "key": "MED-MARTHA-NEW1-TEST",
-    "doctorName": "Dra. Martha Bravo",
-    "username": "1309405899",
-    "password": "medmartha123",
-    "purchaseDate": "2026-07-23",
-    "status": "Activa",
-    "maxActivations": 1,
-    "activatedDeviceId": null
+    "activatedDeviceId": "PHONE-ANDROID-8819"
   }
 ]

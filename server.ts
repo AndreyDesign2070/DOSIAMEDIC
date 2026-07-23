@@ -246,13 +246,15 @@ app.post('/api/licenses/activate', (req: Request, res: Response) => {
   const { key, deviceId } = req.body;
 
   if (!key || !deviceId) {
-    res.status(400).json({ error: 'Faltan campos requeridos (key, deviceId)' });
+    res.status(400).json({ error: 'Faltan campos requeridos (clave de licencia o dispositivo)' });
     return;
   }
 
-  const lic = licenses.find(l => l.key === key);
+  const cleanKey = key.trim().toUpperCase();
+  const lic = licenses.find(l => l.key.trim().toUpperCase() === cleanKey);
+  
   if (!lic) {
-    res.status(404).json({ error: 'La licencia ingresada no es válida.' });
+    res.status(404).json({ error: 'La clave de licencia ingresada no es válida o no existe.' });
     return;
   }
 
@@ -268,7 +270,7 @@ app.post('/api/licenses/activate', (req: Request, res: Response) => {
     saveLicenses();
     res.json({
       success: true,
-      message: 'Licencia vinculada correctamente a este dispositivo.',
+      message: '¡Licencia activada y vinculada exitosamente a este celular!',
       license: {
         key: lic.key,
         doctorName: lic.doctorName,
@@ -279,7 +281,7 @@ app.post('/api/licenses/activate', (req: Request, res: Response) => {
     // Already bound to this device, allow entry
     res.json({
       success: true,
-      message: 'Licencia activa en este dispositivo.',
+      message: 'Licencia activa y vinculada a este celular.',
       license: {
         key: lic.key,
         doctorName: lic.doctorName,
@@ -289,7 +291,7 @@ app.post('/api/licenses/activate', (req: Request, res: Response) => {
   } else {
     // Bound to a different device
     res.status(400).json({
-      error: 'La licencia ya está activada en otro dispositivo. Contacte al administrador para transferirla.'
+      error: 'Esta licencia ya fue vinculada a otro dispositivo celular. Para cambiar de teléfono, solicite al administrador que reinicie la vinculación.'
     });
   }
 });
@@ -299,30 +301,36 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   const { username, password, deviceId } = req.body;
 
   if (!username || !password || !deviceId) {
-    res.status(400).json({ error: 'Faltan campos requeridos' });
+    res.status(400).json({ error: 'Por favor ingrese su usuario (cédula) y contraseña.' });
     return;
   }
 
-  // Find license that corresponds to username
-  const lic = licenses.find(l => l.username === username);
+  const cleanUser = username.trim().toLowerCase();
+  const cleanPass = password.trim();
+
+  // Find license that corresponds to username (case-insensitive)
+  const lic = licenses.find(l => l.username.trim().toLowerCase() === cleanUser);
   if (!lic) {
-    res.status(401).json({ error: 'Credenciales inválidas o médico no registrado.' });
+    res.status(401).json({ error: 'No existe ningún usuario o médico registrado con esta cédula.' });
     return;
   }
 
-  if (lic.password !== password) {
-    res.status(401).json({ error: 'Credenciales inválidas.' });
+  if (lic.password.trim() !== cleanPass) {
+    res.status(401).json({ error: 'Contraseña incorrecta. Verifique sus datos.' });
     return;
   }
 
   if (lic.status !== 'Activa') {
-    res.status(400).json({ error: 'Licencia inactiva. Contacte a soporte.' });
+    res.status(400).json({ error: 'Licencia inactiva. Contacte al administrador.' });
     return;
   }
 
-  // Double check device binding
-  if (lic.activatedDeviceId && lic.activatedDeviceId !== deviceId) {
-    res.status(400).json({ error: 'Esta cuenta está vinculada a otro dispositivo físico.' });
+  // Double check device binding: if not bound yet, bind now!
+  if (!lic.activatedDeviceId) {
+    lic.activatedDeviceId = deviceId;
+    saveLicenses();
+  } else if (lic.activatedDeviceId !== deviceId) {
+    res.status(400).json({ error: 'Esta cuenta de usuario está vinculada a otro teléfono celular.' });
     return;
   }
 

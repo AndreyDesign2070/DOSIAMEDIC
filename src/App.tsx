@@ -142,7 +142,7 @@ export default function App() {
       // Local fallback
       const cached = localStorage.getItem('dosia_local_licenses');
       const localList: License[] = cached ? JSON.parse(cached) : INITIAL_LICENSES;
-      const lic = localList.find((l: License) => l.key === keyToActivate);
+      const lic = localList.find((l: License) => l.key.trim().toUpperCase() === keyToActivate.toUpperCase());
 
       if (!lic) {
         setLicenseError('La clave de licencia ingresada no es válida.');
@@ -155,7 +155,7 @@ export default function App() {
       if (!lic.activatedDeviceId || lic.activatedDeviceId === deviceId) {
         lic.activatedDeviceId = deviceId;
         localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
-        localStorage.setItem('dosia_activated_license_key', keyToActivate);
+        localStorage.setItem('dosia_activated_license_key', lic.key);
         setLicenseSuccess('¡Licencia verificada y vinculada exitosamente a este dispositivo!');
         setLicenseActivated(true);
         setTimeout(() => {
@@ -213,14 +213,14 @@ export default function App() {
       const cached = localStorage.getItem('dosia_local_licenses');
       const localList: License[] = cached ? JSON.parse(cached) : INITIAL_LICENSES;
 
-      const lic = localList.find((l: License) => l.username === uInput);
+      const lic = localList.find((l: License) => l.username.trim().toLowerCase() === uInput.toLowerCase());
 
       if (!lic) {
         setLoginError('No existe ningún usuario registrado con esta cédula de identidad.');
         return;
       }
 
-      if (lic.password !== pInput) {
+      if (lic.password.trim() !== pInput) {
         setLoginError('Contraseña incorrecta.');
         return;
       }
