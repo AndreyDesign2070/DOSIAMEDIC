@@ -1,0 +1,8 @@
+{
+  "name": "DOSIA",
+  "description": "Asistente médico de emergencia para elaboración de prescripciones, cálculo automático de dosis (BSA/IMC), vademécum inteligente con alertas y sugerencias de tratamiento por IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
