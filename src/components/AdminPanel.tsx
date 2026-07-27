@@ -126,6 +126,11 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
 
   useEffect(() => {
     fetchLicenses();
+    // Real-time polling every 3 seconds across all devices
+    const interval = setInterval(() => {
+      fetchLicenses();
+    }, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   // Generate a random license key in format: MED-8XQ2-4P7K-Z91A
@@ -638,40 +643,37 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                         </button>
                       </td>
                       <td className="py-3.5 px-3 text-center">
-                        {lic.activatedDeviceId ? (
-                          <div className="flex flex-col items-center justify-center">
-                            <span className="inline-flex items-center gap-1 text-[11px] text-cyan-400 bg-cyan-500/5 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                        {lic.activatedDeviceId && lic.activatedDeviceId !== 'null' ? (
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30 font-semibold">
                               <Smartphone className="w-3.5 h-3.5" /> Vinculado
                             </span>
-                            <span className="text-[9px] text-slate-500 mt-1 font-mono max-w-[100px] truncate" title={lic.activatedDeviceId}>
-                              ID: {lic.activatedDeviceId.substring(0, 10)}...
-                            </span>
+                            <button
+                              onClick={() => handleResetDevice(lic.key)}
+                              className="mt-1 bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[10px] font-bold px-2 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm active:scale-95"
+                              title="Desvincular para permitir registrar en un nuevo celular"
+                            >
+                              🔓 Liberar Celular
+                            </button>
                           </div>
                         ) : (
-                          <span className="text-slate-500">Sin Vincular</span>
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-semibold">
+                            ✨ Listo para activar en celular
+                          </span>
                         )}
                       </td>
                       <td className="py-3.5 px-3 text-right pr-6">
                         <div className="flex items-center justify-end gap-2">
-                          {lic.activatedDeviceId && (
-                            <button
-                              onClick={() => handleResetDevice(lic.key)}
-                              className="bg-amber-500/10 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 text-[10px] font-bold px-2 py-1 rounded transition-all cursor-pointer"
-                              title="Reiniciar ID del dispositivo vinculado"
-                            >
-                              Reset
-                            </button>
-                          )}
                           <button
                             onClick={() => startEditLicense(lic)}
-                            className="bg-brand-teal/10 hover:bg-brand-teal/25 border border-brand-teal/30 text-brand-teal text-[10px] font-bold px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1"
+                            className="bg-brand-teal/10 hover:bg-brand-teal/25 border border-brand-teal/30 text-brand-teal text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1"
                             title="Editar licencia"
                           >
                             <Edit className="w-3.5 h-3.5" /> Editar
                           </button>
                           <button
                             onClick={() => handleDeleteLicense(lic.key, lic.doctorName)}
-                            className="bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 text-[10px] font-bold px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1"
+                            className="bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1"
                             title="Eliminar licencia"
                           >
                             <Trash2 className="w-3.5 h-3.5" /> Borrar

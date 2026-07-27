@@ -74,11 +74,13 @@ if (process.env.GEMINI_API_KEY) {
 
 // Admin API: Get all licenses
 app.get('/api/licenses', (req: Request, res: Response) => {
+  loadLicenses();
   res.json({ licenses });
 });
 
 // Admin API: Create or Upsert a license
 app.post('/api/licenses', (req: Request, res: Response) => {
+  loadLicenses();
   const { key, doctorName, username, password, status, maxActivations } = req.body;
   
   if (!key || !doctorName || !username || !password) {
@@ -130,8 +132,10 @@ app.post('/api/licenses', (req: Request, res: Response) => {
 
 // Admin API: Toggle status
 app.post('/api/licenses/toggle', (req: Request, res: Response) => {
+  loadLicenses();
   const { key } = req.body;
-  const lic = licenses.find(l => l.key === key);
+  const normKey = normalizeKey(key);
+  const lic = licenses.find(l => normalizeKey(l.key) === normKey);
   if (!lic) {
     res.json({ message: 'Licencia no encontrada en servidor, actualización local realizada.' });
     return;
@@ -144,8 +148,10 @@ app.post('/api/licenses/toggle', (req: Request, res: Response) => {
 
 // Admin API: Transfer or reset license activation
 app.post('/api/licenses/transfer', (req: Request, res: Response) => {
+  loadLicenses();
   const { key, newDeviceId } = req.body;
-  const lic = licenses.find(l => l.key === key);
+  const normKey = normalizeKey(key);
+  const lic = licenses.find(l => normalizeKey(l.key) === normKey);
   if (!lic) {
     res.json({ message: 'Licencia no encontrada en servidor, reinicio local realizado.' });
     return;
@@ -158,19 +164,21 @@ app.post('/api/licenses/transfer', (req: Request, res: Response) => {
 
 // Admin API: Update existing license
 app.post('/api/licenses/update', (req: Request, res: Response) => {
+  loadLicenses();
   const { originalKey, key, doctorName, username, password, status } = req.body;
   if (!originalKey) {
     res.status(400).json({ error: 'Falta la clave original para identificar la licencia' });
     return;
   }
-  let licIndex = licenses.findIndex(l => l.key === originalKey);
+  const normOriginal = normalizeKey(originalKey);
+  let licIndex = licenses.findIndex(l => normalizeKey(l.key) === normOriginal);
   
   if (licIndex === -1) {
     const newLic = {
-      key: key || originalKey,
-      doctorName: doctorName || 'Médico',
-      username: username || '',
-      password: password || '',
+      key: (key || originalKey).trim(),
+      doctorName: (doctorName || 'Médico').trim(),
+      username: (username || '').trim(),
+      password: (password || '').trim(),
       purchaseDate: new Date().toISOString().split('T')[0],
       status: status || 'Activa',
       maxActivations: 1,
@@ -182,26 +190,28 @@ app.post('/api/licenses/update', (req: Request, res: Response) => {
     return;
   }
 
-  if (key && key !== originalKey) {
-    const keyExists = licenses.some((l, idx) => l.key === key && idx !== licIndex);
+  if (key && normalizeKey(key) !== normOriginal) {
+    const normKeyNew = normalizeKey(key);
+    const keyExists = licenses.some((l, idx) => normalizeKey(l.key) === normKeyNew && idx !== licIndex);
     if (keyExists) {
       res.status(400).json({ error: 'La nueva clave de licencia ya está registrada' });
       return;
     }
   }
 
-  if (username && username !== licenses[licIndex].username) {
-    const userExists = licenses.some((l, idx) => l.username === username && idx !== licIndex);
+  if (username && normalizeUser(username) !== normalizeUser(licenses[licIndex].username)) {
+    const normUserNew = normalizeUser(username);
+    const userExists = licenses.some((l, idx) => normalizeUser(l.username) === normUserNew && idx !== licIndex);
     if (userExists) {
       res.status(400).json({ error: 'La nueva cédula (usuario) ya está registrada' });
       return;
     }
   }
 
-  if (key) licenses[licIndex].key = key;
-  if (doctorName) licenses[licIndex].doctorName = doctorName;
-  if (username) licenses[licIndex].username = username;
-  if (password) licenses[licIndex].password = password;
+  if (key) licenses[licIndex].key = key.trim();
+  if (doctorName) licenses[licIndex].doctorName = doctorName.trim();
+  if (username) licenses[licIndex].username = username.trim();
+  if (password) licenses[licIndex].password = password.trim();
   if (status) licenses[licIndex].status = status;
 
   saveLicenses();
@@ -210,12 +220,14 @@ app.post('/api/licenses/update', (req: Request, res: Response) => {
 
 // Admin API: Delete a license
 app.post('/api/licenses/delete', (req: Request, res: Response) => {
+  loadLicenses();
   const { key } = req.body;
   if (!key) {
     res.status(400).json({ error: 'Falta la clave de la licencia a eliminar' });
     return;
   }
-  const licIndex = licenses.findIndex(l => l.key === key);
+  const normKey = normalizeKey(key);
+  const licIndex = licenses.findIndex(l => normalizeKey(l.key) === normKey);
   if (licIndex !== -1) {
     licenses.splice(licIndex, 1);
     saveLicenses();
@@ -225,18 +237,21 @@ app.post('/api/licenses/delete', (req: Request, res: Response) => {
 
 // Doctor API: Activate a license for a device
 app.post('/api/licenses/activate', (req: Request, res: Response) => {
+  loadLicenses();
   const { key, deviceId } = req.body;
 
-  if (!key || !deviceId) {
-    res.status(400).json({ error: 'Faltan campos requeridos (clave de licencia o dispositivo)' });
+  if (!key) {
+    res.status(400).json({ error: 'Falta la clave de licencia o número de cédula.' });
     return;
   }
 
   const cleanKey = normalizeKey(key);
-  const lic = licenses.find(l => normalizeKey(l.key) === cleanKey);
+  const cleanUser = normalizeUser(key);
+
+  const lic = licenses.find(l => normalizeKey(l.key) === cleanKey || normalizeUser(l.username) === cleanUser);
   
   if (!lic) {
-    res.status(404).json({ error: 'La clave de licencia ingresada no es válida o no existe.' });
+    res.status(404).json({ error: 'La clave de licencia o cédula ingresada no está registrada en el sistema.' });
     return;
   }
 
@@ -245,59 +260,46 @@ app.post('/api/licenses/activate', (req: Request, res: Response) => {
     return;
   }
 
-  // Device binding logic
-  if (!lic.activatedDeviceId) {
-    // First time activation: bind device ID
+  // Bind current cellphone device ID
+  if (deviceId) {
     lic.activatedDeviceId = deviceId;
     saveLicenses();
-    res.json({
-      success: true,
-      message: '¡Licencia activada y vinculada exitosamente a este celular!',
-      license: {
-        key: lic.key,
-        doctorName: lic.doctorName,
-        username: lic.username
-      }
-    });
-  } else if (lic.activatedDeviceId === deviceId) {
-    // Already bound to this device, allow entry
-    res.json({
-      success: true,
-      message: 'Licencia activa y vinculada a este celular.',
-      license: {
-        key: lic.key,
-        doctorName: lic.doctorName,
-        username: lic.username
-      }
-    });
-  } else {
-    // Bound to a different device
-    res.status(400).json({
-      error: 'Esta licencia ya fue vinculada a otro dispositivo celular. Para cambiar de teléfono, solicite al administrador que reinicie la vinculación.'
-    });
   }
+
+  res.json({
+    success: true,
+    message: '¡Licencia verificada y vinculada exitosamente a este celular!',
+    license: {
+      key: lic.key,
+      doctorName: lic.doctorName,
+      username: lic.username
+    }
+  });
 });
 
 // Doctor API: Authenticate user credentials
 app.post('/api/auth/login', (req: Request, res: Response) => {
+  loadLicenses();
   const { username, password, deviceId } = req.body;
 
-  if (!username || !password || !deviceId) {
+  if (!username || !password) {
     res.status(400).json({ error: 'Por favor ingrese su usuario (cédula) y contraseña.' });
     return;
   }
 
   const cleanUser = normalizeUser(username);
+  const cleanKey = normalizeKey(username);
   const cleanPass = (password || '').trim();
 
-  // Find license that corresponds to username (case-insensitive & whitespace tolerant)
-  const lic = licenses.find(l => normalizeUser(l.username) === cleanUser);
+  // Find license that corresponds to username or key (case-insensitive & whitespace tolerant)
+  const lic = licenses.find(l => normalizeUser(l.username) === cleanUser || normalizeKey(l.key) === cleanKey);
   if (!lic) {
-    res.status(401).json({ error: 'No existe ningún usuario o médico registrado con esta cédula.' });
+    res.status(401).json({ error: 'No existe ningún usuario o médico registrado con esta cédula o clave.' });
     return;
   }
 
-  if (lic.password.trim() !== cleanPass) {
+  // Compare passwords case-insensitively to prevent mobile phone auto-capitalization errors
+  if (lic.password.trim().toLowerCase() !== cleanPass.toLowerCase()) {
     res.status(401).json({ error: 'Contraseña incorrecta. Verifique sus datos.' });
     return;
   }
@@ -307,13 +309,10 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     return;
   }
 
-  // Double check device binding: if not bound yet, bind now!
-  if (!lic.activatedDeviceId) {
+  // Always bind device ID on successful login
+  if (deviceId) {
     lic.activatedDeviceId = deviceId;
     saveLicenses();
-  } else if (lic.activatedDeviceId !== deviceId) {
-    res.status(400).json({ error: 'Esta cuenta de usuario está vinculada a otro teléfono celular.' });
-    return;
   }
 
   res.json({

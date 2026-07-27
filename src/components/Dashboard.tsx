@@ -13,6 +13,7 @@ import AIMedicalAssistantModule from './AIMedicalAssistantModule';
 import MedicalImagingModule from './MedicalImagingModule';
 import MedicalAnalyticsDashboard from './MedicalAnalyticsDashboard';
 import GlobalSearchModal from './GlobalSearchModal';
+import PatientsListModal from './PatientsListModal';
 import DosiaLogo from './DosiaLogo';
 import DosiaAppIcon from './DosiaAppIcon';
 import {
@@ -56,6 +57,9 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
   // Global Search Modal state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Patients List Modal state
+  const [showPatientsListModal, setShowPatientsListModal] = useState(false);
 
   // New Patient Creation Modal (Points 1 to 16)
   const [showNewPatientModal, setShowNewPatientModal] = useState(false);
@@ -211,6 +215,14 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     savePatientsToStorage(list);
   };
 
+  const handleDeletePatient = (patientId: string) => {
+    const updated = patients.filter(p => p.id !== patientId);
+    savePatientsToStorage(updated);
+    if (activePatientId === patientId) {
+      setActivePatientId(updated.length > 0 ? updated[0].id : '');
+    }
+  };
+
   const handleUpdateAlerts = (newAlerts: PatientAlerts) => {
     if (!activePatient) return;
     const updated: Patient = {
@@ -266,6 +278,20 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
             className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-all cursor-pointer shadow-md shadow-brand-teal/10"
           >
             <Plus className="w-4 h-4" /> Nuevo Paciente
+          </button>
+
+          {/* White Pacientes Button right next to Nuevo Paciente */}
+          <button
+            type="button"
+            onClick={() => setShowPatientsListModal(true)}
+            className="bg-white hover:bg-slate-100 text-slate-900 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-slate-200"
+          >
+            <User className="w-4 h-4 text-brand-navy" /> Pacientes
+            {patients.length > 0 && (
+              <span className="bg-brand-navy/10 text-brand-navy text-[10px] font-extrabold px-1.5 py-0.2 rounded-full font-mono">
+                {patients.length}
+              </span>
+            )}
           </button>
 
           {/* Global Search Button */}
@@ -896,6 +922,17 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
           </div>
         </div>
       )}
+
+      {/* PATIENTS LIST MODAL */}
+      <PatientsListModal
+        isOpen={showPatientsListModal}
+        onClose={() => setShowPatientsListModal(false)}
+        patients={patients}
+        activePatientId={activePatientId}
+        onSelectPatient={(id) => setActivePatientId(id)}
+        onDeletePatient={handleDeletePatient}
+        onOpenNewPatientModal={() => setShowNewPatientModal(true)}
+      />
 
       {/* FOOTER */}
       <footer className="border-t border-slate-800 py-4 text-center text-xs text-slate-500 font-mono">

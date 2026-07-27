@@ -105,10 +105,23 @@ export default function App() {
     setLicenseError('');
     setLicenseSuccess('');
 
-    const keyToActivate = licenseInput.trim();
+    // Normalize key: remove spaces, smart dashes (\u2010-\u2015, \u2212), and convert to uppercase
+    const keyToActivate = (licenseInput || '')
+      .replace(/[\u2010-\u2015\u2212]/g, '-')
+      .replace(/\s+/g, '')
+      .toUpperCase();
+
     if (!keyToActivate) {
       setLicenseError('Escriba su clave de licencia.');
       return;
+    }
+
+    // Ensure valid deviceId
+    let activeDeviceId = deviceId;
+    if (!activeDeviceId) {
+      activeDeviceId = `IMEI-${Math.floor(100000 + Math.random() * 900000)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      localStorage.setItem('dosia_simulated_device_id', activeDeviceId);
+      setDeviceId(activeDeviceId);
     }
 
     try {
@@ -117,7 +130,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           key: keyToActivate,
-          deviceId
+          deviceId: activeDeviceId
         })
       });
 
@@ -133,7 +146,7 @@ export default function App() {
         setLicenseActivated(true);
         setTimeout(() => {
           setCurrentView('login');
-        }, 1500);
+        }, 1200);
         return;
       }
 
@@ -148,8 +161,8 @@ export default function App() {
           setLicenseError('Esta licencia se encuentra inactiva. Contacte al administrador.');
           return;
         }
-        if (!lic.activatedDeviceId || lic.activatedDeviceId === deviceId) {
-          lic.activatedDeviceId = deviceId;
+        if (!lic.activatedDeviceId || lic.activatedDeviceId === activeDeviceId || lic.activatedDeviceId === 'null') {
+          lic.activatedDeviceId = activeDeviceId;
           localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
           localStorage.setItem('dosia_activated_license_key', lic.key);
           setLicenseSuccess('¡Licencia verificada y vinculada exitosamente a este dispositivo!');
@@ -171,7 +184,7 @@ export default function App() {
             fetch('/api/licenses/activate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ key: lic.key, deviceId })
+              body: JSON.stringify({ key: lic.key, deviceId: activeDeviceId })
             }).catch(() => {});
           }).catch(() => {});
 
@@ -180,7 +193,7 @@ export default function App() {
           }, 1200);
           return;
         } else {
-          setLicenseError('Esta licencia ya está vinculada y activa en otro dispositivo.');
+          setLicenseError('Esta licencia ya está vinculada y activa en otro dispositivo. Solicite al administrador liberar el celular.');
           return;
         }
       }
@@ -195,24 +208,24 @@ export default function App() {
       const lic = localList.find((l: License) => normKey(l?.key) === normKey(keyToActivate));
 
       if (!lic) {
-        setLicenseError('La clave de licencia ingresada no es válida.');
+        setLicenseError('La clave de licencia ingresada no es válida o no existe.');
         return;
       }
       if (lic.status !== 'Activa') {
         setLicenseError('Esta licencia se encuentra inactiva. Contacte al administrador.');
         return;
       }
-      if (!lic.activatedDeviceId || lic.activatedDeviceId === deviceId) {
-        lic.activatedDeviceId = deviceId;
+      if (!lic.activatedDeviceId || lic.activatedDeviceId === activeDeviceId || lic.activatedDeviceId === 'null') {
+        lic.activatedDeviceId = activeDeviceId;
         localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
         localStorage.setItem('dosia_activated_license_key', lic.key);
-        setLicenseSuccess('¡Licencia verificada y vinculada exitosamente a este dispositivo!');
+        setLicenseSuccess('¡Licencia verificada y vinculada exitosamente a este celular!');
         setLicenseActivated(true);
         setTimeout(() => {
           setCurrentView('login');
         }, 1200);
       } else {
-        setLicenseError('Esta licencia ya está vinculada y activa en otro dispositivo.');
+        setLicenseError('Esta licencia ya está vinculada a otro celular. Solicite al administrador liberar el celular.');
       }
     }
   };
@@ -249,6 +262,10 @@ export default function App() {
 
       if (res.ok && data.success) {
         localStorage.setItem('dosia_active_doctor', JSON.stringify(data.doctor));
+        if (data.doctor?.licenseKey) {
+          localStorage.setItem('dosia_activated_license_key', data.doctor.licenseKey);
+        }
+        setLicenseActivated(true);
         setActiveDoctor(data.doctor);
         setCurrentView('dashboard');
         setUsernameInput('');
@@ -292,6 +309,8 @@ export default function App() {
         };
 
         localStorage.setItem('dosia_active_doctor', JSON.stringify(doctorData));
+        localStorage.setItem('dosia_activated_license_key', lic.key);
+        setLicenseActivated(true);
         setActiveDoctor(doctorData);
         setCurrentView('dashboard');
         setUsernameInput('');
@@ -465,7 +484,7 @@ export default function App() {
                     <Award className="w-3.5 h-3.5" /> Vinculación de Dispositivo
                   </span>
                   <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                    Ingrese la clave de licencia provista para autorizar y ligar este dispositivo a DOSIA.
+                    Ingrese su Clave de Licencia provista o su número de Cédula para autorizar este celular.
                   </p>
                 </div>
 
@@ -482,19 +501,22 @@ export default function App() {
                 )}
 
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">Clave de Licencia</label>
+                  <label className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">Clave de Licencia o Cédula</label>
                   <div className="relative">
                     <input
                       type="text"
                       value={licenseInput}
                       onChange={(e) => setLicenseInput(e.target.value)}
-                      placeholder="Ej. MED-8XQ2-4P7K-Z91A"
+                      placeholder="Ej. MED-8XQ2-4P7K-Z91A o su Cédula"
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
                       className="bg-brand-navy-light border border-slate-700 focus:border-brand-teal focus:outline-none rounded-xl pl-11 pr-4 py-3.5 text-sm w-full font-mono text-brand-teal-pastel tracking-wider placeholder:tracking-normal"
                     />
                     <Key className="w-5 h-5 text-slate-500 absolute left-3.5 top-3.5" />
                   </div>
                   <span className="text-[9px] text-slate-500 block leading-normal mt-1">
-                    Ingrese la clave de licencia asignada a su cuenta.
+                    Ingrese la clave de licencia o su número de cédula asignado por el administrador.
                   </span>
                 </div>
 
@@ -502,7 +524,7 @@ export default function App() {
                   type="submit"
                   className="w-full bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-brand-teal/20 transition-all text-xs flex items-center justify-center gap-2 mt-4 cursor-pointer"
                 >
-                  <ShieldCheck className="w-4 h-4" /> Verificar y Vincular Teléfono
+                  <ShieldCheck className="w-4 h-4" /> Verificar y Vincular Celular
                 </button>
 
                 <div className="text-center pt-2">
@@ -512,9 +534,9 @@ export default function App() {
                       setLicenseActivated(true);
                       setCurrentView('login');
                     }}
-                    className="text-[11px] text-slate-500 hover:text-brand-teal hover:underline"
+                    className="text-[11px] text-slate-400 hover:text-brand-teal hover:underline font-medium"
                   >
-                    Ya tengo una licencia activa en este teléfono →
+                    ¿El administrador ya te dio acceso? Iniciar Sesión aquí →
                   </button>
                 </div>
 
@@ -543,6 +565,9 @@ export default function App() {
                       value={usernameInput}
                       onChange={(e) => setUsernameInput(e.target.value)}
                       placeholder="ingrese su usuario"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       className="bg-brand-navy-light border border-slate-700 rounded-xl pl-4 pr-11 py-3 text-sm w-full text-white focus:outline-none focus:border-brand-teal font-mono"
                       required
                       autoComplete="off"
@@ -565,6 +590,9 @@ export default function App() {
                       value={passwordInput}
                       onChange={(e) => setPasswordInput(e.target.value)}
                       placeholder="ingrese su contraseña"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       className="bg-brand-navy-light border border-slate-700 rounded-xl pl-4 pr-11 py-3 text-sm w-full text-white focus:outline-none focus:border-brand-teal font-mono"
                       required
                       autoComplete="off"
