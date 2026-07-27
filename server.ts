@@ -119,10 +119,14 @@ app.post('/api/licenses', (req: Request, res: Response) => {
     doctorName: doctorName.trim(),
     username: username.trim(),
     password: password.trim(),
-    purchaseDate: new Date().toISOString().split('T')[0],
+    purchaseDate: req.body.purchaseDate || new Date().toISOString().split('T')[0],
     status: status || 'Activa',
     maxActivations: maxActivations || 1,
-    activatedDeviceId: null
+    activatedDeviceId: req.body.activatedDeviceId || null,
+    monthlyFee: req.body.monthlyFee || 70,
+    paymentScheme: req.body.paymentScheme || 'Quincenal y Fin de Mes ($35 / $35)',
+    firstHalfPaymentStatus: req.body.firstHalfPaymentStatus || 'Pagado',
+    secondHalfPaymentStatus: req.body.secondHalfPaymentStatus || 'Pagado'
   };
 
   licenses.push(newLicense);

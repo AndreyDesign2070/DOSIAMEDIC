@@ -66,8 +66,6 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     if (!isBackground && licensesList.length === 0) {
       setLoading(true);
     }
-    let loadedFromServer = false;
-    const normKey = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const dummyKeys = ['MED-8XQ2-4P7K-Z91A', 'MED-9YF4-2K3L-X82B', 'MED-1A2B-3C4D-5E6F'];
 
     try {
@@ -77,55 +75,22 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
         if (contentType && contentType.includes('application/json')) {
           const data = await res.json();
           if (data && Array.isArray(data.licenses)) {
-            const local = getLocalLicenses();
-            const map = new Map<string, License>();
+            const serverList = data.licenses.filter(
+              (l: License) => l && l.key && !dummyKeys.includes(l.key) && l.doctorName !== 'Dr. Juan Pérez'
+            );
 
-            // Add server licenses
-            data.licenses.forEach((l: License) => {
-              if (l && l.key && !dummyKeys.includes(l.key) && l.doctorName !== 'Dr. Juan Pérez') {
-                map.set(normKey(l.key), l);
-              }
-            });
-
-            // Merge local licenses that aren't on server yet
-            local.forEach((l: License) => {
-              if (l && l.key && !dummyKeys.includes(l.key) && l.doctorName !== 'Dr. Juan Pérez') {
-                if (!map.has(normKey(l.key))) {
-                  map.set(normKey(l.key), l);
-                  // Back-sync missing local license to server
-                  fetch('/api/licenses', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      key: l.key,
-                      doctorName: l.doctorName,
-                      username: l.username,
-                      password: l.password,
-                      status: l.status,
-                      maxActivations: 1
-                    })
-                  }).catch(() => {});
-                }
-              }
-            });
-
-            const merged = Array.from(map.values());
             setLicensesList((prev) => {
-              if (JSON.stringify(prev) !== JSON.stringify(merged)) {
-                return merged;
+              if (JSON.stringify(prev) !== JSON.stringify(serverList)) {
+                return serverList;
               }
               return prev;
             });
-            saveLocalLicenses(merged);
-            loadedFromServer = true;
+            saveLocalLicenses(serverList);
           }
         }
       }
     } catch (e) {
       console.warn('Backend server unreachable, using local storage cache for licenses:', e);
-    }
-
-    if (!loadedFromServer) {
       const cached = getLocalLicenses();
       setLicensesList((prev) => {
         if (JSON.stringify(prev) !== JSON.stringify(cached)) {
@@ -133,8 +98,11 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
         }
         return prev;
       });
+    } finally {
+      if (!isBackground) {
+        setLoading(false);
+      }
     }
-    setLoading(false);
   };
 
   useEffect(() => {
