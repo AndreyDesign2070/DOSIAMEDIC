@@ -86,16 +86,20 @@ app.post('/api/licenses', (req: Request, res: Response) => {
     return;
   }
 
-  const existingKeyIndex = licenses.findIndex(l => l.key === key);
-  const existingUserIndex = licenses.findIndex(l => l.username === username);
+  const normKey = normalizeKey(key);
+  const normUser = normalizeUser(username);
+
+  const existingKeyIndex = licenses.findIndex(l => normalizeKey(l.key) === normKey);
+  const existingUserIndex = licenses.findIndex(l => normalizeUser(l.username) === normUser);
 
   if (existingKeyIndex !== -1) {
     // Update existing key
     licenses[existingKeyIndex] = {
       ...licenses[existingKeyIndex],
-      doctorName,
-      username,
-      password,
+      key: key.trim(), // preserve key string format
+      doctorName: doctorName.trim(),
+      username: username.trim(),
+      password: password.trim(),
       status: status || licenses[existingKeyIndex].status || 'Activa'
     };
     saveLicenses();
@@ -109,10 +113,10 @@ app.post('/api/licenses', (req: Request, res: Response) => {
   }
 
   const newLicense = {
-    key,
-    doctorName,
-    username,
-    password,
+    key: key.trim(),
+    doctorName: doctorName.trim(),
+    username: username.trim(),
+    password: password.trim(),
     purchaseDate: new Date().toISOString().split('T')[0],
     status: status || 'Activa',
     maxActivations: maxActivations || 1,

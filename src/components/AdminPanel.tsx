@@ -61,10 +61,13 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     return [];
   };
 
-  // Fetch licenses from server with fallback to local cache
+  // Fetch licenses from server with fallback and merge with local cache
   const fetchLicenses = async () => {
     setLoading(true);
     let loadedFromServer = false;
+    const normKey = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const dummyKeys = ['MED-8XQ2-4P7K-Z91A', 'MED-9YF4-2K3L-X82B', 'MED-1A2B-3C4D-5E6F'];
+
     try {
       const res = await fetch('/api/licenses');
       if (res.ok) {
@@ -72,8 +75,41 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
         if (contentType && contentType.includes('application/json')) {
           const data = await res.json();
           if (data && Array.isArray(data.licenses)) {
-            setLicensesList(data.licenses);
-            saveLocalLicenses(data.licenses);
+            const local = getLocalLicenses();
+            const map = new Map<string, License>();
+
+            // Add server licenses
+            data.licenses.forEach((l: License) => {
+              if (l && l.key && !dummyKeys.includes(l.key) && l.doctorName !== 'Dr. Juan Pérez') {
+                map.set(normKey(l.key), l);
+              }
+            });
+
+            // Merge local licenses that aren't on server yet
+            local.forEach((l: License) => {
+              if (l && l.key && !dummyKeys.includes(l.key) && l.doctorName !== 'Dr. Juan Pérez') {
+                if (!map.has(normKey(l.key))) {
+                  map.set(normKey(l.key), l);
+                  // Back-sync missing local license to server
+                  fetch('/api/licenses', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      key: l.key,
+                      doctorName: l.doctorName,
+                      username: l.username,
+                      password: l.password,
+                      status: l.status,
+                      maxActivations: 1
+                    })
+                  }).catch(() => {});
+                }
+              }
+            });
+
+            const merged = Array.from(map.values());
+            setLicensesList(merged);
+            saveLocalLicenses(merged);
             loadedFromServer = true;
           }
         }
@@ -129,7 +165,9 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
 
     // Check duplicate cédula or key locally first
     const currentList = licensesList.length > 0 ? licensesList : getLocalLicenses();
-    const duplicate = currentList.some(l => l.key === key || l.username === cédula);
+    const normK = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const normU = (u: string) => (u || '').trim().toLowerCase();
+    const duplicate = currentList.some(l => normK(l.key) === normK(key) || normU(l.username) === normU(cédula));
     if (duplicate) {
       setErrorMsg('La clave de licencia o la cédula de usuario ya se encuentra registrada.');
       return;
