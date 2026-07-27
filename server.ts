@@ -14,44 +14,22 @@ const PORT = 3000;
 const LICENSES_FILE = path.join(process.cwd(), 'data_licenses.json');
 
 // Initialize Licenses Database
-let licenses = [
-  {
-    key: 'MED-8XQ2-4P7K-Z91A',
-    doctorName: 'Dr. Juan Pérez',
-    username: '12345673',
-    password: 'medjuan783',
-    purchaseDate: '2026-05-15',
-    status: 'Activa',
-    maxActivations: 1,
-    activatedDeviceId: null
-  },
-  {
-    key: 'MED-9YF4-2K3L-X82B',
-    doctorName: 'Dra. María Rodríguez',
-    username: '87654321',
-    password: 'medmaria851',
-    purchaseDate: '2026-06-20',
-    status: 'Activa',
-    maxActivations: 1,
-    activatedDeviceId: 'simulated-phone-maria'
-  },
-  {
-    key: 'MED-1A2B-3C4D-5E6F',
-    doctorName: 'Dr. Andrey Silva',
-    username: '11223344',
-    password: 'medandrey904',
-    purchaseDate: '2026-07-01',
-    status: 'Activa',
-    maxActivations: 1,
-    activatedDeviceId: null
-  }
-];
+let licenses: any[] = [];
+
+// Helper normalization functions for resilient key and username matching
+const normalizeKey = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+const normalizeUser = (u: string) => (u || '').trim().toLowerCase();
 
 function loadLicenses() {
   try {
     if (fs.existsSync(LICENSES_FILE)) {
       const data = fs.readFileSync(LICENSES_FILE, 'utf8');
-      licenses = JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        // Filter out legacy fake demo accounts if present
+        const dummyKeys = ['MED-8XQ2-4P7K-Z91A', 'MED-9YF4-2K3L-X82B', 'MED-1A2B-3C4D-5E6F'];
+        licenses = parsed.filter(l => !dummyKeys.includes(l.key) && l.doctorName !== 'Dr. Juan Pérez');
+      }
     } else {
       saveLicenses();
     }
@@ -250,8 +228,8 @@ app.post('/api/licenses/activate', (req: Request, res: Response) => {
     return;
   }
 
-  const cleanKey = key.trim().toUpperCase();
-  const lic = licenses.find(l => l.key.trim().toUpperCase() === cleanKey);
+  const cleanKey = normalizeKey(key);
+  const lic = licenses.find(l => normalizeKey(l.key) === cleanKey);
   
   if (!lic) {
     res.status(404).json({ error: 'La clave de licencia ingresada no es válida o no existe.' });
@@ -305,11 +283,11 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     return;
   }
 
-  const cleanUser = username.trim().toLowerCase();
-  const cleanPass = password.trim();
+  const cleanUser = normalizeUser(username);
+  const cleanPass = (password || '').trim();
 
-  // Find license that corresponds to username (case-insensitive)
-  const lic = licenses.find(l => l.username.trim().toLowerCase() === cleanUser);
+  // Find license that corresponds to username (case-insensitive & whitespace tolerant)
+  const lic = licenses.find(l => normalizeUser(l.username) === cleanUser);
   if (!lic) {
     res.status(401).json({ error: 'No existe ningún usuario o médico registrado con esta cédula.' });
     return;

@@ -1,49 +1,6 @@
 import { Medication, EmergencyProtocol, License, Patient } from './types';
 
-export const INITIAL_LICENSES: License[] = [
-  {
-    key: 'MED-8XQ2-4P7K-Z91A',
-    doctorName: 'Dr. Juan Pérez',
-    username: '12345673',
-    password: 'medjuan783',
-    purchaseDate: '2026-05-15',
-    status: 'Activa',
-    maxActivations: 1,
-    activatedDeviceId: null,
-    monthlyFee: 70,
-    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
-    firstHalfPaymentStatus: 'Pagado',
-    secondHalfPaymentStatus: 'Pagado'
-  },
-  {
-    key: 'MED-9YF4-2K3L-X82B',
-    doctorName: 'Dra. María Rodríguez',
-    username: '87654321',
-    password: 'medmaria851',
-    purchaseDate: '2026-06-20',
-    status: 'Activa',
-    maxActivations: 1,
-    activatedDeviceId: 'simulated-phone-maria',
-    monthlyFee: 70,
-    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
-    firstHalfPaymentStatus: 'Pagado',
-    secondHalfPaymentStatus: 'Pagado'
-  },
-  {
-    key: 'MED-1A2B-3C4D-5E6F',
-    doctorName: 'Dr. Andrey Silva',
-    username: '11223344',
-    password: 'medandrey904',
-    purchaseDate: '2026-07-01',
-    status: 'Activa',
-    maxActivations: 1,
-    activatedDeviceId: null,
-    monthlyFee: 70,
-    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
-    firstHalfPaymentStatus: 'Pagado',
-    secondHalfPaymentStatus: 'Pagado'
-  }
-];
+export const INITIAL_LICENSES: License[] = [];
 
 export const INITIAL_PATIENTS: Patient[] = [
   {

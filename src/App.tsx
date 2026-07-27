@@ -141,8 +141,9 @@ export default function App() {
       console.warn('Servidor no disponible para activación online, verificando almacenamiento local:', err);
       // Local fallback
       const cached = localStorage.getItem('dosia_local_licenses');
-      const localList: License[] = cached ? JSON.parse(cached) : INITIAL_LICENSES;
-      const lic = localList.find((l: License) => l.key.trim().toUpperCase() === keyToActivate.toUpperCase());
+      const localList: License[] = cached ? JSON.parse(cached) : [];
+      const normKey = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      const lic = localList.find((l: License) => normKey(l?.key) === normKey(keyToActivate));
 
       if (!lic) {
         setLicenseError('La clave de licencia ingresada no es válida.');
@@ -211,9 +212,10 @@ export default function App() {
       console.warn('Servidor no disponible para login online, verificando almacenamiento local:', err);
       // Local fallback
       const cached = localStorage.getItem('dosia_local_licenses');
-      const localList: License[] = cached ? JSON.parse(cached) : INITIAL_LICENSES;
+      const localList: License[] = cached ? JSON.parse(cached) : [];
+      const normUser = (u: string) => (u || '').trim().toLowerCase();
 
-      const lic = localList.find((l: License) => (l?.username || '').trim().toLowerCase() === (uInput || '').toLowerCase());
+      const lic = localList.find((l: License) => normUser(l?.username) === normUser(uInput));
 
       if (!lic) {
         setLoginError('No existe ningún usuario registrado con esta cédula de identidad.');

@@ -52,12 +52,13 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       const cached = localStorage.getItem('dosia_local_licenses');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const dummyKeys = ['MED-8XQ2-4P7K-Z91A', 'MED-9YF4-2K3L-X82B', 'MED-1A2B-3C4D-5E6F'];
+          return parsed.filter((l: License) => !dummyKeys.includes(l.key) && l.doctorName !== 'Dr. Juan Pérez');
         }
       }
     } catch (e) {}
-    return INITIAL_LICENSES;
+    return [];
   };
 
   // Fetch licenses from server with fallback to local cache
