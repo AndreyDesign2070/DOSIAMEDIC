@@ -62,8 +62,10 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
   };
 
   // Fetch licenses from server with fallback and merge with local cache
-  const fetchLicenses = async () => {
-    setLoading(true);
+  const fetchLicenses = async (isBackground = false) => {
+    if (!isBackground && licensesList.length === 0) {
+      setLoading(true);
+    }
     let loadedFromServer = false;
     const normKey = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const dummyKeys = ['MED-8XQ2-4P7K-Z91A', 'MED-9YF4-2K3L-X82B', 'MED-1A2B-3C4D-5E6F'];
@@ -108,7 +110,12 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
             });
 
             const merged = Array.from(map.values());
-            setLicensesList(merged);
+            setLicensesList((prev) => {
+              if (JSON.stringify(prev) !== JSON.stringify(merged)) {
+                return merged;
+              }
+              return prev;
+            });
             saveLocalLicenses(merged);
             loadedFromServer = true;
           }
@@ -119,16 +126,22 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     }
 
     if (!loadedFromServer) {
-      setLicensesList(getLocalLicenses());
+      const cached = getLocalLicenses();
+      setLicensesList((prev) => {
+        if (JSON.stringify(prev) !== JSON.stringify(cached)) {
+          return cached;
+        }
+        return prev;
+      });
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchLicenses();
-    // Real-time polling every 3 seconds across all devices
+    fetchLicenses(false);
+    // Real-time polling every 3 seconds across all devices without UI flickering
     const interval = setInterval(() => {
-      fetchLicenses();
+      fetchLicenses(true);
     }, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -644,21 +657,12 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                       </td>
                       <td className="py-3.5 px-3 text-center">
                         {lic.activatedDeviceId && lic.activatedDeviceId !== 'null' ? (
-                          <div className="flex flex-col items-center justify-center gap-1">
-                            <span className="inline-flex items-center gap-1 text-[11px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30 font-semibold">
-                              <Smartphone className="w-3.5 h-3.5" /> Vinculado
-                            </span>
-                            <button
-                              onClick={() => handleResetDevice(lic.key)}
-                              className="mt-1 bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[10px] font-bold px-2 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm active:scale-95"
-                              title="Desvincular para permitir registrar en un nuevo celular"
-                            >
-                              🔓 Liberar Celular
-                            </button>
-                          </div>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/30 font-semibold">
+                            <Smartphone className="w-3.5 h-3.5" /> Vinculado
+                          </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-semibold">
-                            ✨ Listo para activar en celular
+                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-semibold">
+                            ✨ Listo para usar
                           </span>
                         )}
                       </td>
