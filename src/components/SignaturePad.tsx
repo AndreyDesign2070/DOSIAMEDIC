@@ -24,7 +24,7 @@ export default function SignaturePad({ onSave, initialValue }: SignaturePadProps
     canvas.height = canvas.offsetHeight * ratio;
     ctx.scale(ratio, ratio);
 
-    ctx.strokeStyle = '#FFFFFF'; // Crisp white ink
+    ctx.strokeStyle = '#1e293b'; // Dark gray ink color
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -132,7 +132,7 @@ export default function SignaturePad({ onSave, initialValue }: SignaturePadProps
         )}
       </div>
       
-      <div className="relative w-full h-32 bg-brand-navy-light/60 rounded-lg border border-slate-700 overflow-hidden cursor-crosshair">
+      <div className="relative w-full h-32 bg-white rounded-xl border-2 border-slate-300 overflow-hidden cursor-crosshair shadow-inner">
         <canvas
           id="digital-signature-canvas"
           ref={canvasRef}
@@ -147,8 +147,8 @@ export default function SignaturePad({ onSave, initialValue }: SignaturePadProps
         />
         {!hasSigned && (
           <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center text-slate-400 text-xs gap-1 select-none">
-            <span>Dibuje su firma digital aquí</span>
-            <span className="text-[10px] text-slate-500">(Soporta cursor y pantalla táctil)</span>
+            <span className="font-semibold text-slate-500">Trazar firma con el dedo o ratón</span>
+            <span className="text-[10px] text-slate-400">(Tinta gris oscuro)</span>
           </div>
         )}
       </div>

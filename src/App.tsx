@@ -27,7 +27,7 @@ export default function App() {
   // Login inputs
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  const [showUsername, setShowUsername] = useState(false);
+  const [showUsername, setShowUsername] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
 
@@ -213,14 +213,14 @@ export default function App() {
       const cached = localStorage.getItem('dosia_local_licenses');
       const localList: License[] = cached ? JSON.parse(cached) : INITIAL_LICENSES;
 
-      const lic = localList.find((l: License) => l.username.trim().toLowerCase() === uInput.toLowerCase());
+      const lic = localList.find((l: License) => (l?.username || '').trim().toLowerCase() === (uInput || '').toLowerCase());
 
       if (!lic) {
         setLoginError('No existe ningún usuario registrado con esta cédula de identidad.');
         return;
       }
 
-      if (lic.password.trim() !== pInput) {
+      if ((lic?.password || '').trim() !== pInput) {
         setLoginError('Contraseña incorrecta.');
         return;
       }
@@ -384,7 +384,7 @@ export default function App() {
                     <Key className="w-5 h-5 text-slate-500 absolute left-3.5 top-3.5" />
                   </div>
                   <span className="text-[9px] text-slate-500 block leading-normal mt-1">
-                    Demo de Andrey para pruebas: <strong className="text-slate-400 select-all font-mono">MED-8XQ2-4P7K-Z91A</strong>
+                    Ingrese la clave de licencia asignada a su cuenta.
                   </span>
                 </div>
 
@@ -468,7 +468,7 @@ export default function App() {
                     </button>
                   </div>
                   <span className="text-[9px] text-slate-500 mt-1 block">
-                    Demo: Usuario <strong className="text-slate-400">12345673</strong> y contraseña <strong className="text-slate-400">medjuan783</strong>
+                    Ingrese con su cédula de identidad y contraseña autorizada.
                   </span>
                 </div>
 

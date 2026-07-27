@@ -1,4 +1,4 @@
-import { Medication, EmergencyProtocol, License } from './types';
+import { Medication, EmergencyProtocol, License, Patient } from './types';
 
 export const INITIAL_LICENSES: License[] = [
   {
@@ -9,7 +9,11 @@ export const INITIAL_LICENSES: License[] = [
     purchaseDate: '2026-05-15',
     status: 'Activa',
     maxActivations: 1,
-    activatedDeviceId: null
+    activatedDeviceId: null,
+    monthlyFee: 70,
+    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
+    firstHalfPaymentStatus: 'Pagado',
+    secondHalfPaymentStatus: 'Pagado'
   },
   {
     key: 'MED-9YF4-2K3L-X82B',
@@ -19,7 +23,11 @@ export const INITIAL_LICENSES: License[] = [
     purchaseDate: '2026-06-20',
     status: 'Activa',
     maxActivations: 1,
-    activatedDeviceId: 'simulated-phone-maria'
+    activatedDeviceId: 'simulated-phone-maria',
+    monthlyFee: 70,
+    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
+    firstHalfPaymentStatus: 'Pagado',
+    secondHalfPaymentStatus: 'Pagado'
   },
   {
     key: 'MED-1A2B-3C4D-5E6F',
@@ -29,7 +37,114 @@ export const INITIAL_LICENSES: License[] = [
     purchaseDate: '2026-07-01',
     status: 'Activa',
     maxActivations: 1,
-    activatedDeviceId: null
+    activatedDeviceId: null,
+    monthlyFee: 70,
+    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
+    firstHalfPaymentStatus: 'Pagado',
+    secondHalfPaymentStatus: 'Pagado'
+  }
+];
+
+export const INITIAL_PATIENTS: Patient[] = [
+  {
+    id: 'p-101',
+    name: 'María Josefa Gómez',
+    cardId: '1726354189',
+    hcNumber: 'HC-2026-0042',
+    photoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
+    age: 42,
+    weight: 68,
+    height: 162,
+    sex: 'F',
+    bloodGroup: 'O+',
+    status: 'Activo',
+    lastConsultationDate: '2026-07-22',
+    attendingDoctor: 'Dr. Juan Pérez',
+    allergies: ['Penicilina', 'Sulfa'],
+    preExistingConditions: ['Hipertensión Arterial', 'Diabetes Mellitus Tipo 2'],
+    alerts: {
+      allergies: ['Penicilina', 'Sulfa'],
+      chronicDiseases: ['Hipertensión Arterial', 'Diabetes Mellitus Tipo 2'],
+      isPregnant: false,
+      isLactating: false,
+      hasRenalFailure: false,
+      hasHepaticFailure: false,
+      hasCardioRisk: true
+    },
+    vitalSigns: {
+      heartRate: 82,
+      bloodPressure: '135/85',
+      temperature: 36.7,
+      respiratoryRate: 18,
+      oxygenSaturation: 97,
+      painEva: 2,
+      glycemia: 142,
+      abdominalCircumference: 88,
+      consciousnessAVPU: 'A',
+      diuresisMlHr: 55,
+      fluidBalanceMl: 350,
+      chestPain: false,
+      abdominalPain: false,
+      respiratoryStatus: 'Eupneico'
+    },
+    photos: [],
+    studies: [
+      {
+        id: 'st-1',
+        name: 'Radiografía de Tórax PA',
+        type: 'Radiografía',
+        size: '2.4 MB',
+        dataUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=600',
+        date: '2026-07-20',
+        notes: 'Sin consolidaciones ni neumotórax. Silueta cardiaca dentro de límites normales.'
+      }
+    ],
+    createdAt: '2026-05-10'
+  },
+  {
+    id: 'p-102',
+    name: 'Carlos Alberto Benítez',
+    cardId: '0918273645',
+    hcNumber: 'HC-2026-0089',
+    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
+    age: 65,
+    weight: 84,
+    height: 175,
+    sex: 'M',
+    bloodGroup: 'A+',
+    status: 'Hospitalizado',
+    lastConsultationDate: '2026-07-23',
+    attendingDoctor: 'Dr. Juan Pérez',
+    allergies: ['Aspirina', 'AINEs'],
+    preExistingConditions: ['Insuficiencia Renal Crónica G3', 'Cardiopatía Isquémica'],
+    alerts: {
+      allergies: ['Aspirina', 'AINEs'],
+      chronicDiseases: ['IRC G3', 'Cardiopatía Isquémica'],
+      isPregnant: false,
+      isLactating: false,
+      hasRenalFailure: true,
+      hasHepaticFailure: false,
+      hasCardioRisk: true
+    },
+    vitalSigns: {
+      heartRate: 98,
+      bloodPressure: '150/95',
+      temperature: 38.2,
+      respiratoryRate: 22,
+      oxygenSaturation: 93,
+      painEva: 6,
+      glycemia: 185,
+      abdominalCircumference: 102,
+      consciousnessAVPU: 'A',
+      diuresisMlHr: 25,
+      fluidBalanceMl: -100,
+      chestPain: true,
+      abdominalPain: false,
+      respiratoryStatus: 'Taquipneico'
+    },
+    photos: [],
+    studies: [],
+    createdAt: '2026-06-01'
   }
 ];
 
@@ -37,102 +152,429 @@ export const INITIAL_MEDICATIONS: Medication[] = [
   {
     id: '1',
     name: 'Paracetamol (Acetaminofén)',
+    brandName: 'Tylenol / Panadol / Buprex',
+    genericName: 'Paracetamol',
     activeIngredient: 'Paracetamol',
     category: 'Analgésico / Antipirético',
+    presentation: 'Tabletas 500mg/1g, Jarabe 120mg/5ml, Gotas 100mg/ml, Ampollas 1g/100ml',
+    concentration: '500 mg / 1000 mg',
+    indications: ['Fiebre', 'Dolor leve a moderado', 'Cefalea', 'Odontalgia'],
+    contraindications: ['Insuficiencia hepática grave', 'Hipersensibilidad al principio activo'],
+    interactions: [
+      { drugName: 'Warfarina', severity: 'Moderada', description: 'El uso prolongado de paracetamol a altas dosis puede incrementar el efecto anticoagulante.' },
+      { drugName: 'Ibuprofeno', severity: 'Sin interacción', description: 'Uso alternado seguro en fiebre persistente con monitoreo.' }
+    ],
+    renalAdjustment: 'TFG < 10 ml/min: Aumentar intervalo a cada 8 horas.',
+    hepaticAdjustment: 'Reducir dosis máxima a 2 g/día en cirrosis/hepatopatía.',
+    pregnancyCategory: 'B',
+    lactationSafety: 'Seguro',
+    adverseEffects: ['Hepatotoxicidad a sobredosis', 'Exantema cutáneo raro'],
+    mechanismOfAction: 'Inhibición de la síntesis de prostaglandinas a nivel del sistema nervioso central.',
     adultDose: '500 mg - 1 g cada 6 a 8 horas (Máximo 4 g/día)',
-    pediatricDosePerKg: '10-15 mg/kg por dosis cada 4 a 6 horas (Máximo 5 tomas al día)',
+    pediatricDosePerKg: '10-15 mg/kg por dosis cada 4 a 6 horas (Máximo 5 tomas al día o 75 mg/kg/día)',
     maxDailyDoseMg: 4000,
     maxDosePerKgMg: 75,
-    interactions: [
-      { drugName: 'Warfarina', severity: 'Media', description: 'El uso prolongado de paracetamol puede incrementar el efecto anticoagulante.' },
-      { drugName: 'Ibuprofeno', severity: 'Baja', description: 'Uso sinérgico posible con precaución, vigilar función renal.' }
-    ],
-    contraindications: ['Insuficiencia hepática grave', 'Hipersensibilidad al principio activo']
+    adminRoute: 'Oral / IV',
+    infusionRate: 'IV a pasar en 15 minutos',
+    dilution: 'No requiere dilución',
+    stability: '24 horas tras apertura',
+    ivCompatibility: 'Compatible con SS 0.9% y SG 5%',
+    approxCost: '$2.50 / caja',
+    availability: 'Disponible'
   },
   {
     id: '2',
     name: 'Ibuprofeno',
+    brandName: 'Advil / Motrin / Buprex Forte',
+    genericName: 'Ibuprofeno',
     activeIngredient: 'Ibuprofeno',
     category: 'AINE (Antiinflamatorio No Esteroideo)',
+    presentation: 'Tabletas 400mg/600mg/800mg, Jarabe 100mg/5ml, 200mg/5ml',
+    concentration: '400 mg / 600 mg',
+    indications: ['Dolor agudo', 'Inflamación articular', 'Dismenorrea', 'Fiebre'],
+    contraindications: ['Úlcera péptica activa', 'Insuficiencia renal severa', 'Tercer trimestre de embarazo', 'Alergia a AINEs'],
+    interactions: [
+      { drugName: 'Ketorolaco', severity: 'Grave', description: 'Riesgo aumentado de úlceras gastrointestinales y sangrado digestivo severo.' },
+      { drugName: 'Enalapril', severity: 'Moderada', description: 'Reduce el efecto antihipertensivo de los IECA y aumenta riesgo de falla renal.' }
+    ],
+    renalAdjustment: 'TFG < 30 ml/min: Evitar su uso.',
+    hepaticAdjustment: 'Usar con cautela en hepatopatía leve/moderada.',
+    pregnancyCategory: 'C (D en 3er trimestre)',
+    lactationSafety: 'Seguro',
+    adverseEffects: ['Epigastralgia', 'Sangrado digestivo', 'Nefrotoxicidad'],
+    mechanismOfAction: 'Inhibición no selectiva de la ciclooxigenasa (COX-1 y COX-2).',
     adultDose: '400 - 600 mg cada 6 a 8 horas (Máximo 2400 mg/día)',
     pediatricDosePerKg: '5-10 mg/kg por dosis cada 6 a 8 horas (Máximo 40 mg/kg/día)',
     maxDailyDoseMg: 2400,
     maxDosePerKgMg: 40,
-    interactions: [
-      { drugName: 'Ketorolaco', severity: 'Alta', description: 'Riesgo aumentado de úlceras gastrointestinales y sangrado.' },
-      { drugName: 'Enalapril', severity: 'Media', description: 'Reduce el efecto antihipertensivo de los IECA y aumenta riesgo de falla renal.' }
-    ],
-    contraindications: ['Úlcera péptica activa', 'Insuficiencia renal severa', 'Tercer trimestre de embarazo']
+    adminRoute: 'Oral con alimentos',
+    approxCost: '$4.00 / caja',
+    availability: 'Disponible'
   },
   {
     id: '3',
-    name: 'Amoxicilina',
+    name: 'Amoxicilina / Ácido Clavulánico',
+    brandName: 'Augmentin / Clavulin / Amoxil Plus',
+    genericName: 'Amoxicilina + Clavulanato',
     activeIngredient: 'Amoxicilina',
-    category: 'Antibiótico (Betalactámico)',
-    adultDose: '500 mg cada 8 horas o 875 mg cada 12 horas',
-    pediatricDosePerKg: '40-90 mg/kg/día dividido en 2 o 3 dosis',
+    category: 'Antibiótico (Betalactámico + Inhibidor de lactamasa)',
+    presentation: 'Tabletas 875/125mg, Suspensiones 250/62.5mg, 400/57mg por 5ml',
+    concentration: '500 mg / 875 mg',
+    indications: ['Neumonía adquirida en comunidad', 'Otitis media aguda', 'Sinusitis', 'Infección urinaria', 'Infección de piel y partes blandas'],
+    contraindications: ['Alergia a la penicilina o cefalosporinas', 'Antecedente de ictericia colestásica por amoxicilina'],
+    interactions: [
+      { drugName: 'Metotrexato', severity: 'Grave', description: 'Disminuye la excreción renal de metotrexato aumentando su toxicidad hematológica.' },
+      { drugName: 'Alopurinol', severity: 'Moderada', description: 'Mayor incidencia de exantema cutáneo maculopapular.' }
+    ],
+    renalAdjustment: 'TFG 10-30: Administrar cada 12 horas. TFG < 10: Administrar cada 24 horas.',
+    hepaticAdjustment: 'Monitorear función hepática periódicamente.',
+    pregnancyCategory: 'B',
+    lactationSafety: 'Seguro',
+    adverseEffects: ['Diarrea', 'Exantema', 'Náuseas'],
+    mechanismOfAction: 'Bactericida que inhibe la síntesis de pared celular bacteriana resistiendo beta-lactamasas.',
+    adultDose: '500 mg cada 8 horas o 875 mg cada 12 horas VO',
+    pediatricDosePerKg: '40-90 mg/kg/día dividido en 2 o 3 dosis por 7 a 10 días',
     maxDailyDoseMg: 3000,
     maxDosePerKgMg: 90,
-    interactions: [
-      { drugName: 'Metotrexato', severity: 'Alta', description: 'Disminuye la excreción de metotrexato aumentando su toxicidad.' }
-    ],
-    contraindications: ['Alergia a la penicilina o cefalosporinas']
+    adminRoute: 'Oral al inicio de comidas',
+    approxCost: '$12.00 / tratamiento',
+    availability: 'Disponible'
   },
   {
     id: '4',
-    name: 'Metoclopramida',
-    activeIngredient: 'Metoclopramida',
-    category: 'Antiemético / Proquinético',
-    adultDose: '10 mg cada 8 horas (Máximo 30 mg/día)',
-    pediatricDosePerKg: '0.1-0.15 mg/kg por dosis cada 8 horas',
-    maxDailyDoseMg: 30,
-    maxDosePerKgMg: 0.5,
+    name: 'Ceftriaxona 1g',
+    brandName: 'Rocephin / Ceftrian',
+    genericName: 'Ceftriaxona',
+    activeIngredient: 'Ceftriaxona',
+    category: 'Antibiótico Cefalosporina de 3ra Generación',
+    presentation: 'Frasco ampolla 1 g IV / IM con diluyente',
+    concentration: '1000 mg',
+    indications: ['Meningitis bacteriana', 'Sepsis grave', 'Neumonía severa', 'Infección intraabdominal', 'Gonorrea'],
+    contraindications: ['Hipersensibilidad severa a cefalosporinas', 'Neonatos con hiperbilirrubinemia o recibiendo calcio IV'],
     interactions: [
-      { drugName: 'Haloperidol', severity: 'Alta', description: 'Incrementa el riesgo de efectos extrapiramidales (distonías).' }
+      { drugName: 'Ceftriaxona + Calcio', severity: 'Grave', description: 'Precipitación letal de sal de calcio de ceftriaxona en pulmón y riñones en neonatos.' }
     ],
-    contraindications: ['Obstrucción intestinal', 'Feocromocitoma', 'Epilepsia']
+    renalAdjustment: 'No requiere ajuste a menos que coincida falla renal y hepática grave (Máx 2 g/día).',
+    hepaticAdjustment: 'Máximo 2 g/día si hay fallo renal concomitante.',
+    pregnancyCategory: 'B',
+    lactationSafety: 'Seguro',
+    adverseEffects: ['Diarrea', 'Barro biliar reversible', 'Trombocitopenia leve'],
+    mechanismOfAction: 'Inhibe la síntesis de peptidoglicano de la pared celular bacteriana.',
+    adultDose: '1 a 2 g IV/IM cada 24 horas (Sepsis/Meningitis: 2 g c/12h)',
+    pediatricDosePerKg: '50-100 mg/kg/día IV cada 12 o 24 horas (Máximo 4 g/día)',
+    maxDailyDoseMg: 4000,
+    maxDosePerKgMg: 100,
+    adminRoute: 'IV lento en 5 min o Infusión en 30 min / IM profunda con lidocaína',
+    approxCost: '$6.50 / ampolla',
+    availability: 'Disponible'
   },
   {
     id: '5',
     name: 'Adrenalina (Epinefrina) 1mg/ml',
+    brandName: 'Epinefrina Ampolla',
+    genericName: 'Epinefrina',
     activeIngredient: 'Epinefrina',
-    category: 'Agonista Adrenérgico (Emergencia)',
-    adultDose: 'Anafilaxia: 0.3 - 0.5 mg IM (1:1000) cada 5-15 min. RCP: 1 mg IV cada 3-5 min.',
-    pediatricDosePerKg: 'Anafilaxia: 0.01 mg/kg IM (máximo 0.3 mg). RCP: 0.01 mg/kg IV cada 3-5 min.',
+    category: 'Agonista Adrenérgico (Emergencia / RCP / Anafilaxia)',
+    presentation: 'Ampolla 1 mg / 1 ml (1:1000)',
+    concentration: '1 mg / 1 ml',
+    indications: ['Anafilaxia', 'Paro Cardiorrespiratorio (ACLS)', 'Broncoespasmo severo', 'Crup severo nebulizado'],
+    contraindications: ['Ninguna en situación de emergencia vital'],
+    interactions: [
+      { drugName: 'Propranolol', severity: 'Grave', description: 'Riesgo de hipertensión severa seguida de bradicardia por bloqueo beta incontrapuesto.' }
+    ],
+    renalAdjustment: 'No requiere ajuste.',
+    hepaticAdjustment: 'No requiere ajuste.',
+    pregnancyCategory: 'C',
+    lactationSafety: 'Uso en emergencia',
+    adverseEffects: ['Taquicardia', 'Arritmias', 'Ansiedad', 'Hipertensión'],
+    mechanismOfAction: 'Estimulación directa de receptores alfa y beta adrenérgicos.',
+    adultDose: 'Anafilaxia: 0.3 - 0.5 mg IM (1:1000) c/5-15 min. RCP: 1 mg IV c/3-5 min.',
+    pediatricDosePerKg: 'Anafilaxia: 0.01 mg/kg IM (máximo 0.3 mg). RCP: 0.01 mg/kg IV c/3-5 min.',
     maxDailyDoseMg: 5,
     maxDosePerKgMg: 0.1,
-    interactions: [
-      { drugName: 'Propropanol', severity: 'Alta', description: 'Riesgo de hipertensión severa seguida de bradicardia.' }
-    ],
-    contraindications: ['Ninguna en situación de emergencia vital']
+    adminRoute: 'IM (muslo anterolateral) / IV / IO / Nebulizado',
+    approxCost: '$1.50 / ampolla',
+    availability: 'Disponible'
   },
   {
     id: '6',
-    name: 'Salbutamol Inhalador',
+    name: 'Salbutamol (Albuterol)',
+    brandName: 'Ventolin / Aerolin',
+    genericName: 'Salbutamol',
     activeIngredient: 'Salbutamol',
-    category: 'Broncodilatador (Beta-2 agonista)',
-    adultDose: '2 inhalaciones (100 mcg c/u) cada 4-6 horas en crisis',
-    pediatricDosePerKg: '2 inhalaciones cada 4-6 horas o nebulización: 0.05-0.15 mg/kg',
-    maxDailyDoseMg: 10,
-    maxDosePerKgMg: 0.5,
+    category: 'Broncodilatador Agonista Beta-2 Adrenérgico',
+    presentation: 'Inhalador 100 mcg/dosis, Solución para nebulizar 5 mg/ml, Jarabe 2mg/5ml',
+    concentration: '100 mcg / dosis',
+    indications: ['Crisis asmática', 'Broncoespasmo agudo', 'Hiperpotasemia (emergencia)'],
+    contraindications: ['Hipersensibilidad al principio activo'],
     interactions: [
-      { drugName: 'Propropanol', severity: 'Alta', description: 'Los betabloqueantes antagonizan el efecto del salbutamol.' }
+      { drugName: 'Propranolol', severity: 'Grave', description: 'Antagonismo competitivo que anula el efecto broncodilatador.' }
     ],
-    contraindications: ['Hipersensibilidad al medicamento']
+    renalAdjustment: 'No requiere ajuste.',
+    hepaticAdjustment: 'No requiere ajuste.',
+    pregnancyCategory: 'C',
+    lactationSafety: 'Seguro',
+    adverseEffects: ['Taquicardia sinusal', 'Temblor fino distal', 'Hipopotasemia'],
+    mechanismOfAction: 'Estimulación de receptores beta-2 del músculo liso bronquial produciendo broncodilatación.',
+    adultDose: '2 a 4 puffs c/20 min en crisis o 2.5 - 5 mg nebulizado c/20 min',
+    pediatricDosePerKg: '2 a 4 puffs con aerocámara c/20 min o 0.15 mg/kg nebulizado (mínimo 1.25 mg)',
+    maxDailyDoseMg: 20,
+    maxDosePerKgMg: 0.6,
+    adminRoute: 'Inhalatoria oral con aerocámara / Nebulizado',
+    approxCost: '$7.50 / inhalador',
+    availability: 'Disponible'
   },
   {
     id: '7',
-    name: 'Cefalexina',
-    activeIngredient: 'Cefalexina',
-    category: 'Antibiótico (Cefalosporina 1ra gen)',
-    adultDose: '250 - 500 mg cada 6 horas (Máximo 4 g/día)',
-    pediatricDosePerKg: '25-50 mg/kg/día dividido en 4 dosis (Hasta 100 mg/kg/día en infecciones graves)',
-    maxDailyDoseMg: 4000,
-    maxDosePerKgMg: 100,
+    name: 'Noradrenalina (Norepinefrina) 4mg/4ml',
+    brandName: 'Levophed / Noradrenalina',
+    genericName: 'Noradrenalina',
+    activeIngredient: 'Noradrenalina',
+    category: 'Vasopresor UCI / Shock Séptico',
+    presentation: 'Ampolla 4 mg / 4 ml',
+    concentration: '1 mg / ml',
+    indications: ['Choque Séptico', 'Choque Distributivo', 'Hipotensión refractaria a fluidos'],
+    contraindications: ['Hipotensión por hipovolemia no corregida (salvo emergencia inmediata)'],
     interactions: [
-      { drugName: 'Furosemida', severity: 'Media', description: 'Aumento del riesgo de nefrotoxicidad.' }
+      { drugName: 'Inhibidores MAO', severity: 'Grave', description: 'Riesgo de crisis hipertensiva severa.' }
     ],
-    contraindications: ['Alergia a las cefalosporinas']
+    renalAdjustment: 'No requiere ajuste.',
+    hepaticAdjustment: 'No requiere ajuste.',
+    pregnancyCategory: 'C',
+    lactationSafety: 'Precaución',
+    adverseEffects: ['Isquemia periférica', 'Arritmias', 'Hipertensión arterial'],
+    mechanismOfAction: 'Potente estimulante alfa-1 vasoconstrictor con leve efecto inotrópico beta-1.',
+    adultDose: 'Infusión continua: 0.05 a 0.5 mcg/kg/min (Titular PAM >= 65 mmHg)',
+    pediatricDosePerKg: '0.05 a 0.3 mcg/kg/min en infusión continua central',
+    maxDailyDoseMg: 20,
+    maxDosePerKgMg: 2,
+    adminRoute: 'Infusión IV por Vía Central únicamente',
+    approxCost: '$8.00 / ampolla',
+    availability: 'Disponible'
+  },
+  {
+    id: '8',
+    name: 'Dexametasona 4mg/ml',
+    brandName: 'Dexacort / Decadron',
+    genericName: 'Dexametasona',
+    activeIngredient: 'Dexametasona',
+    category: 'Corticosteroide Sistémico Potente',
+    presentation: 'Ampolla 4mg/ml, 8mg/2ml, Tabletas 4mg',
+    concentration: '4 mg / ml',
+    indications: ['Crup laríngeo (Laringotraqueítis)', 'Edema cerebral', 'Exacerbación asmática', 'Shock anafiláctico'],
+    contraindications: ['Infección fúngica sistémica no tratada'],
+    interactions: [
+      { drugName: 'Fenitoína', severity: 'Moderada', description: 'Acelera el metabolismo de dexametasona reduciendo su eficacia.' }
+    ],
+    renalAdjustment: 'No requiere ajuste.',
+    hepaticAdjustment: 'No requiere ajuste.',
+    pregnancyCategory: 'C',
+    lactationSafety: 'Seguro en dosis única',
+    adverseEffects: ['Hiperglucemia', 'Irritación gástrica', 'Insomnio'],
+    mechanismOfAction: 'Potente acción antiinflamatoria e inmunosupresora sin efecto mineralocorticoide.',
+    adultDose: '4 a 16 mg IV/IM/VO cada 12 a 24 horas',
+    pediatricDosePerKg: 'Crup: 0.15 - 0.6 mg/kg Dosis única IM/VO (Máximo 16 mg)',
+    maxDailyDoseMg: 24,
+    maxDosePerKgMg: 0.6,
+    adminRoute: 'IV / IM / Oral',
+    approxCost: '$2.00 / ampolla',
+    availability: 'Disponible'
+  },
+  {
+    id: '9',
+    name: 'Metoclopramida 10mg/2ml',
+    brandName: 'Plasil / Primperan',
+    genericName: 'Metoclopramida',
+    activeIngredient: 'Metoclopramida',
+    category: 'Antiemético y Procinético Gastrointestinal',
+    presentation: 'Ampollas 10mg/2ml, Tabletas 10mg, Gotas 2.6mg/ml',
+    concentration: '10 mg / 2 ml',
+    indications: ['Náuseas y vómitos agudos', 'Gastroparesia diabética', 'Reflujo gastroesofágico'],
+    contraindications: ['Oclusión intestinal mecánica', 'Feocromocitoma', 'Epilepsia'],
+    interactions: [
+      { drugName: 'Haloperidol', severity: 'Grave', description: 'Incrementa de manera severa el riesgo de síntomas extrapiramidales y distonía.' }
+    ],
+    renalAdjustment: 'TFG < 50 ml/min: Reducir dosis al 50%.',
+    hepaticAdjustment: 'Ajuste según respuesta clínica.',
+    pregnancyCategory: 'B',
+    lactationSafety: 'Seguro con precaución',
+    adverseEffects: ['Distonía agudizante', 'Akatisia', 'Somnolencia'],
+    mechanismOfAction: 'Antagonista de receptores dopaminérgicos D2 central y periférico.',
+    adultDose: '10 mg IV/IM/VO cada 8 horas (A pasar lento en 3 minutos)',
+    pediatricDosePerKg: '0.1 a 0.15 mg/kg por dosis cada 8 horas IV/VO',
+    maxDailyDoseMg: 30,
+    maxDosePerKgMg: 0.5,
+    adminRoute: 'IV lento / IM / Oral',
+    approxCost: '$1.80 / ampolla',
+    availability: 'Disponible'
+  },
+  {
+    id: '10',
+    name: 'Furosemida 20mg/2ml',
+    brandName: 'Lasix / Furosemida',
+    genericName: 'Furosemida',
+    activeIngredient: 'Furosemida',
+    category: 'Diurético de Asa de Alta Potencia',
+    presentation: 'Ampolla 20mg/2ml, Tabletas 40mg',
+    concentration: '20 mg / 2 ml',
+    indications: ['Edema agudo de pulmón', 'Insuficiencia cardíaca congestiva', 'Emergencia hipertensiva con hipervolemia'],
+    contraindications: ['Anuria', 'Coma hepático', 'Hipopotasemia o hiponatremia severa'],
+    interactions: [
+      { drugName: 'Gentamicina', severity: 'Grave', description: 'Potencia notablemente la ototoxicidad y nefrotoxicidad de los aminoglucósidos.' }
+    ],
+    renalAdjustment: 'Requiere dosis más altas en falla renal para alcanzar efecto diurético.',
+    hepaticAdjustment: 'Riesgo de encefalopatía si hay desequilibrio electrolítico.',
+    pregnancyCategory: 'C',
+    lactationSafety: 'Usar con cautela (puede inhibir lactancia)',
+    adverseEffects: ['Hipopotasemia', 'Hiponatremia', 'Deshidratación', 'Ototoxicidad'],
+    mechanismOfAction: 'Inhibición del cotransportador Na+/K+/2Cl- en la rama ascendente gruesa del asa de Henle.',
+    adultDose: '20 a 40 mg IV directo (hasta 80-160 mg en EAP o falla renal)',
+    pediatricDosePerKg: '1 a 2 mg/kg por dosis IV/IM/VO cada 8 a 12 horas (Máximo 6 mg/kg/día)',
+    maxDailyDoseMg: 600,
+    maxDosePerKgMg: 6,
+    adminRoute: 'IV en bolo lento (máx 4 mg/min) / Oral',
+    approxCost: '$2.00 / ampolla',
+    availability: 'Disponible'
+  },
+  {
+    id: '11',
+    name: 'N-Butilhioscina (Escopolamina)',
+    brandName: 'Buscapina / Hioscina',
+    genericName: 'Butilhioscina',
+    activeIngredient: 'Butilbromuro de hioscina',
+    category: 'Antiespasmódico Anticolinérgico',
+    presentation: 'Ampollas 20mg/ml, Tabletas 10mg',
+    concentration: '20 mg / ml',
+    indications: ['CÓLICO BILIAR', 'Crasis renoureteral', 'Espasmo gastrointestinal agudo'],
+    contraindications: ['Glaucoma de ángulo estrecho', 'Hipertrofia prostática con retención urinaria', 'Íleo paralítico'],
+    interactions: [
+      { drugName: 'Antihistamínicos H1', severity: 'Moderada', description: 'Potenciación de efectos anticolinérgicos (boca seca, retención urinaria).' }
+    ],
+    renalAdjustment: 'No requiere ajuste.',
+    hepaticAdjustment: 'No requiere ajuste.',
+    pregnancyCategory: 'C',
+    lactationSafety: 'Seguro',
+    adverseEffects: ['Boca seca', 'Visión borrosa', 'Taquicardia', 'Retención urinaria'],
+    mechanismOfAction: 'Antagonista competitivo de receptores muscarínicos del músculo liso visceral.',
+    adultDose: '20 mg IV/IM cada 6 a 8 horas (Lento en 3 min)',
+    pediatricDosePerKg: '0.3 a 0.6 mg/kg/día dividido en 3 dosis VO/IV',
+    maxDailyDoseMg: 100,
+    maxDosePerKgMg: 1.5,
+    adminRoute: 'IV lento / IM / Oral',
+    approxCost: '$2.20 / ampolla',
+    availability: 'Disponible'
+  },
+  {
+    id: '12',
+    name: 'Omeprazol 40mg',
+    brandName: 'Losec / Omepral / Gastrozol',
+    genericName: 'Omeprazol',
+    activeIngredient: 'Omeprazol',
+    category: 'Inhibidor de la Bomba de Protones (IBP)',
+    presentation: 'Frasco ampolla 40mg IV, Cápsulas 20mg/40mg',
+    concentration: '40 mg',
+    indications: ['Hemorragia digestiva alta', 'Úlcera péptica', 'Gastritis erosiva', 'Profilaxis de úlcera por estrés en UCI'],
+    contraindications: ['Hipersensibilidad al Omeprazol u otros benzimidazoles'],
+    interactions: [
+      { drugName: 'Clopidogrel', severity: 'Moderada', description: 'Inhibe CYP2C19 reduciendo la conversión metabólica de Clopidogrel a su forma activa.' }
+    ],
+    renalAdjustment: 'No requiere ajuste.',
+    hepaticAdjustment: 'Reducir a 20 mg/día en insuficiencia hepática severa.',
+    pregnancyCategory: 'C',
+    lactationSafety: 'Seguro',
+    adverseEffects: ['Cefalea', 'Constipación o diarrea', 'Hipomagnesemia a largo plazo'],
+    mechanismOfAction: 'Inhibición irreversible de la enzima H+/K+-ATPasa de la célula parietal gástrica.',
+    adultDose: '40 mg IV cada 12-24 horas o 20-40 mg VO al día',
+    pediatricDosePerKg: '0.7 a 1 mg/kg/día VO/IV cada 24 horas',
+    maxDailyDoseMg: 80,
+    maxDosePerKgMg: 2,
+    adminRoute: 'IV en 20-30 min / Oral en ayunas',
+    approxCost: '$5.00 / ampolla',
+    availability: 'Disponible'
+  },
+  {
+    id: '13',
+    name: 'Ketorolaco 30mg/ml',
+    brandName: 'Dolgenal / Ketorolaco',
+    genericName: 'Ketorolaco trometamina',
+    activeIngredient: 'Ketorolaco',
+    category: 'AINE Analgésico Potente Parenteral',
+    presentation: 'Ampolla 30mg/ml, 60mg/2ml, Tabletas sublinguales 10mg',
+    concentration: '30 mg / ml',
+    indications: ['Dolor agudo moderado a severo postquirúrgico o traumático', 'Cólico nefrítico'],
+    contraindications: ['Úlcera péptica', 'Riesgo elevado de sangrado', 'Insuficiencia renal moderada-severa', 'Uso por > 5 días'],
+    interactions: [
+      { drugName: 'Ibuprofeno', severity: 'Grave', description: 'Duplica el riesgo de fallo renal agudo y hemorragia digestiva.' }
+    ],
+    renalAdjustment: 'TFG < 50 ml/min: Evitar o reducir dosis al 50%.',
+    hepaticAdjustment: 'Usar con suma cautela.',
+    pregnancyCategory: 'C (D en 3er trimestre)',
+    lactationSafety: 'Precaución',
+    adverseEffects: ['Falla renal aguda', 'Hemorragia digestiva', 'Retención hídrica'],
+    mechanismOfAction: 'Inhibidor potente de la síntesis de prostaglandinas COX-1 y COX-2.',
+    adultDose: '30 mg IV/IM cada 6 u 8 horas (Tratamiento máximo 5 días)',
+    pediatricDosePerKg: '0.5 mg/kg por dosis IV/IM cada 6 u 8 horas (Máximo 30 mg por dosis)',
+    maxDailyDoseMg: 120,
+    maxDosePerKgMg: 2,
+    adminRoute: 'IV en bolo lento / IM',
+    approxCost: '$2.50 / ampolla',
+    availability: 'Disponible'
+  },
+  {
+    id: '14',
+    name: 'Diazepam 10mg/2ml',
+    brandName: 'Valium / Diazepam',
+    genericName: 'Diazepam',
+    activeIngredient: 'Diazepam',
+    category: 'Benzodiacepina (Anticonvulsivante / Ansiolítico)',
+    presentation: 'Ampollas 10mg/2ml, Tabletas 5mg/10mg',
+    concentration: '10 mg / 2 ml',
+    indications: ['Status epiléptico / Crisis convulsiva activa', 'Síndrome de abstinencia alcohólica', 'Ansiedad severa / Sedación'],
+    contraindications: ['Miastenia gravis', 'Insuficiencia respiratoria severa', 'Apnea del sueño'],
+    interactions: [
+      { drugName: 'Alcohol / Opiáceos', severity: 'Grave', description: 'Sinergismo de depresión respiratoria central potencialmente fatal.' }
+    ],
+    renalAdjustment: 'No requiere ajuste significativo.',
+    hepaticAdjustment: 'Reducir dosis al 50% en insuficiencia hepática.',
+    pregnancyCategory: 'D',
+    lactationSafety: 'Contraindicado',
+    adverseEffects: ['Depresión respiratoria', 'Hipotensión', 'Sedación excesiva'],
+    mechanismOfAction: 'Agonista de receptores GABA-A aumentando la frecuencia de apertura de canales de cloro.',
+    adultDose: '5 a 10 mg IV lento (2 mg/min) repitiendo c/10-15 min si persiste convulsión',
+    pediatricDosePerKg: '0.2 a 0.3 mg/kg IV directo o 0.5 mg/kg vía rectal',
+    maxDailyDoseMg: 40,
+    maxDosePerKgMg: 0.6,
+    adminRoute: 'IV muy lento sin diluir / Vía Rectal',
+    approxCost: '$2.00 / ampolla',
+    availability: 'Uso Hospitalario'
+  },
+  {
+    id: '15',
+    name: 'Ondansetrón 8mg/4ml',
+    brandName: 'Zofran / Modifical',
+    genericName: 'Ondansetrón',
+    activeIngredient: 'Ondansetrón',
+    category: 'Antiemético Antagonista 5-HT3',
+    presentation: 'Ampolla 8mg/4ml, 4mg/2ml, Tabletas 4mg/8mg',
+    concentration: '8 mg / 4 ml',
+    indications: ['Prevención y control de vómitos por gastroenteritis agudizante, quimioterapia o cirugía'],
+    contraindications: ['Uso concomitante con apomorfina', 'Síndrome de QT largo congénito'],
+    interactions: [
+      { drugName: 'Tramadol', severity: 'Moderada', description: 'Puede reducir el efecto analgésico del tramadol.' }
+    ],
+    renalAdjustment: 'No requiere ajuste.',
+    hepaticAdjustment: 'Máximo 8 mg/día en fallo hepático severo.',
+    pregnancyCategory: 'B',
+    lactationSafety: 'Seguro',
+    adverseEffects: ['Cefalea', 'Constipación', 'Prolongación intervalo QT'],
+    mechanismOfAction: 'Antagonista selectivo de receptores de serotonina 5-HT3 en zona gatillo quimiorreceptora.',
+    adultDose: '4 a 8 mg IV/IM cada 8 a 12 horas',
+    pediatricDosePerKg: '0.15 mg/kg por dosis IV cada 8 horas (Máximo 8 mg por dosis)',
+    maxDailyDoseMg: 24,
+    maxDosePerKgMg: 0.45,
+    adminRoute: 'IV lento en 2-5 min / IM / Oral',
+    approxCost: '$4.50 / ampolla',
+    availability: 'Disponible'
   }
 ];
 
@@ -140,7 +582,8 @@ export const INITIAL_PROTOCOLS: EmergencyProtocol[] = [
   {
     id: 'p1',
     title: 'Anafilaxia (Choque Alérgico)',
-    category: 'adult',
+    category: 'acls',
+    categoryLabel: 'Alergias & Anafilaxia',
     description: 'Reacción alérgica sistémica grave, de instauración rápida y potencialmente mortal.',
     steps: [
       'Asegurar vía aérea y administrar Oxígeno suplementario a alto flujo.',
@@ -157,54 +600,112 @@ export const INITIAL_PROTOCOLS: EmergencyProtocol[] = [
   },
   {
     id: 'p2',
-    title: 'Anafilaxia Pediátrica',
-    category: 'pediatric',
-    description: 'Reacción alérgica severa en niños. La adrenalina IM es el pilar fundamental.',
+    title: 'Paro Cardiorrespiratorio ACLS (Fibrilación Ventricular / TVSP)',
+    category: 'acls',
+    categoryLabel: 'Emergencias / ACLS',
+    description: 'Soporte vital cardiovascular avanzado en ritmos desfibrilables (FV/TV sin pulso).',
     steps: [
-      'Establecer vía aérea, aplicar oxígeno y colocar en posición cómoda.',
-      'Adrenalina (1:1000) 0.01 mg/kg IM (Dosis máxima 0.3 mg) en muslo.',
-      'Acceso vascular e infusión rápida de Solución Salina a 20 ml/kg.',
-      'Hidrocortisona 5 mg/kg IV o Metilprednisolona 1-2 mg/kg IV.',
-      'Monitoreo continuo de frecuencia cardíaca, oximetría y presión arterial.'
+      'Iniciar RCP de alta calidad (100-120 compresiones/min) + Colocar parches de Desfibrilador.',
+      'Desfibrilar inmediatamente a 200 J (Bifásico). Continuar RCP 2 minutos.',
+      'Canalizar acceso IV/IO. Adrenalina 1 mg IV cada 3 a 5 minutos.',
+      'Evaluar ritmo: Si persiste FV/TV, desfibrilar 200 J y administrar Amiodarona 300 mg IV bolo.',
+      'Asegurar Vía Aérea Avanzada (Tubo endotraqueal) con capnografía continua.'
     ],
     medications: [
-      { name: 'Adrenalina 1 mg/ml', dosage: '0.01 mg/kg (Max 0.3 mg) IM', indication: 'Pilar de elección inmediato' },
-      { name: 'Suero Fisiológico 0.9%', dosage: 'Bolo de 20 ml/kg IV en 10-20 min', indication: 'Inestabilidad hemodinámica' },
-      { name: 'Hidrocortisona', dosage: '5 mg/kg IV', indication: 'Antiinflamatorio corticoide secundario' }
+      { name: 'Adrenalina 1 mg/ml', dosage: '1 mg IV en bolo c/3-5 min', indication: 'Vasopresor principal en RCP' },
+      { name: 'Amiodarona 150mg/3ml', dosage: '300 mg IV bolo (2da dosis 150 mg)', indication: 'Antiarrítmico de elección en FV/TV refractaria' }
     ]
   },
   {
     id: 'p3',
-    title: 'Crisis Asmática Severa (Pediatría)',
-    category: 'pediatric',
-    description: 'Dificultad respiratoria extrema con sibilancias o tórax silente en el paciente pediátrico.',
+    title: 'Sepsis / Shock Séptico (Manejo Hemodinámico)',
+    category: 'sepsis',
+    categoryLabel: 'Sepsis & UCI',
+    description: 'Disfunción orgánica causada por respuesta desregulada a la infección con hipotensión (qSOFA >= 2).',
     steps: [
-      'Oxigenoterapia para mantener saturación > 94%.',
-      'Salbutamol nebulizado 2.5 - 5 mg + Bromuro de Ipratropio 250 - 500 mcg cada 20 min por 3 dosis.',
-      'Hidrocortisona 5 mg/kg IV o Prednisolona 1-2 mg/kg VO.',
-      'Considerar Sulfato de Magnesio 40 mg/kg IV en infusión lenta (20 min) si no hay respuesta a terapia inicial.'
+      'Medir Lactato sérico y tomar Hemocultivos antes de iniciar antibióticos.',
+      'Iniciar Antibióticoterapia de amplio espectro (Ceftriaxona 2g IV o Meropenem 1g IV) en la 1ra hora.',
+      'Resucitación hídrica rápida: Solución Salina o Ringer Lactato 30 ml/kg IV en las primeras 3 horas.',
+      'Si la Presión Arterial Media (PAM) es < 65 mmHg tras fluidos, iniciar Noradrenalina 0.05-0.5 mcg/kg/min.',
+      'Monitoreo estrecho de diuresis horaria (>0.5 ml/kg/h) e Índice de Shock.'
     ],
     medications: [
-      { name: 'Salbutamol Nebulizado', dosage: '2.5 mg (<20kg) o 5 mg (>20kg) c/20 min', indication: 'Broncodilatación' },
-      { name: 'Bromuro de Ipratropio', dosage: '250 mcg (<20kg) o 500 mcg (>20kg) c/20 min', indication: 'Sinergia broncodilatadora antichoque' },
-      { name: 'Sulfato de Magnesio', dosage: '40 mg/kg IV (Max 2g) en 20 min', indication: 'Broncodilatador de rescate en crisis refractaria' }
+      { name: 'Noradrenalina 4mg/4ml', dosage: '0.05 - 0.5 mcg/kg/min IV', indication: 'Vasopresor de 1ra elección para PAM >= 65 mmHg' },
+      { name: 'Ceftriaxona 1g', dosage: '2 g IV cada 24 horas', indication: 'Antibiótico empírico de amplio espectro' },
+      { name: 'Ringer Lactato', dosage: '30 ml/kg IV bolo', indication: 'Resucitación hídrica inicial' }
     ]
   },
   {
     id: 'p4',
-    title: 'Convulsión Aguda / Estatus Epiléptico',
-    category: 'adult',
-    description: 'Actividad convulsiva persistente por más de 5 minutos o crisis repetidas sin recuperación.',
+    title: 'Trauma Severo / TEC y Hemorragia Masiva (ATLS)',
+    category: 'trauma',
+    categoryLabel: 'Trauma & Quirúrgico',
+    description: 'Manejo del traumatismo craneoencefálico grave y choque hemorrágico según ATLS.',
     steps: [
-      'Proteger la cabeza del paciente, colocar de medio lado (seguridad lateral). No insertar objetos en la boca.',
-      'Vía aérea permeable, administrar Oxígeno de rescate.',
-      'Diazepam 10 mg IV lento (2 mg/min) o Midazolam 5-10 mg IM.',
-      'Si persiste tras 5 min, repetir Diazepam 10 mg IV o iniciar Fenitoína 15-20 mg/kg IV en infusión lenta.'
+      'Control de Vía Aérea con Inmovilización Cervical estricta.',
+      'Iniciar Ácido Tranexámico 1 g IV en 10 min si se presenta dentro de las primeras 3 horas.',
+      'Evaluación Glasgow (GCS): Si GCS <= 8, intubación endotraqueal (SIR) para protección de vía aérea.',
+      'Si hay signos de hipertensión endocraneana, administrar Manitol 20% 0.5-1 g/kg IV o Solución Salina Hipertónica 3%.',
+      'Protocolo de Transfusión Masiva (Glóbulos Rojos: Plasma: Plaquetes 1:1:1).'
     ],
     medications: [
-      { name: 'Diazepam 10mg/2ml', dosage: '5 - 10 mg IV lento', indication: 'Primera línea anticonvulsivante' },
-      { name: 'Midazolam 15mg/3ml', dosage: '5 - 10 mg IM o 5 mg IV', indication: 'Alternativa rápida de primera línea' },
-      { name: 'Fenitoína 250mg', dosage: '15 - 20 mg/kg IV (diluido en Solución Salina)', indication: 'Medicamento de carga segunda línea' }
+      { name: 'Ácido Tranexámico 500mg/5ml', dosage: '1 g IV en 10 min', indication: 'Antifibrinolítico precoz en shock hemorrágico' },
+      { name: 'Manitol 20%', dosage: '0.5 - 1 g/kg IV en 20 min', indication: 'Manejo de Hipertensión Endocraneana' }
+    ]
+  },
+  {
+    id: 'p5',
+    title: 'Infarto Agudo de Miocardio con Elevación del ST (IAMCEST)',
+    category: 'cardio',
+    categoryLabel: 'Cardiología & Coronarios',
+    description: 'Síndrome coronario agudo con oclusión coronaria total que requiere reperfusión inmediata.',
+    steps: [
+      'Monitorización ECG de 12 derivaciones en < 10 minutos.',
+      'Aspirina (AAS) 300 mg masticado inmediato + Clopidogrel 300 mg (o Ticagrelor 180 mg).',
+      'Oxígeno solo si SpO2 < 90%. Nitroglicerina sublingual si PAS > 90 mmHg y no hay infarto de VD.',
+      'Morfina o Fentanilo IV para control del dolor isquémico severo.',
+      'Estrategia de reperfusión: Angioplastia Primaria (ICP) en < 120 min o Fibrinolisis (Alteplasa/Tenecteplasa) en < 30 min.'
+    ],
+    medications: [
+      { name: 'Aspirina 100mg', dosage: '300 mg VO masticados', indication: 'Antiagregante de inicio' },
+      { name: 'Clopidogrel 75mg', dosage: '300 - 600 mg VO dosis de carga', indication: 'Segundo antiagregante' },
+      { name: 'Heparina No Fraccionada', dosage: '60 UI/kg IV bolo (Máx 4000 UI)', indication: 'Anticoagulación parenteral' }
+    ]
+  },
+  {
+    id: 'p6',
+    title: 'Accidente Cerebrovascular Agudo (ACV Isquémico)',
+    category: 'neuro',
+    categoryLabel: 'Neurología Aguda',
+    description: 'Déficit neurológico focal agudo de origen vascular (Escala NIHSS / Cincinnati).',
+    steps: [
+      'Tomografía Axial Computarizada (TAC) de cráneo simple sin contraste de urgencia.',
+      'Verificar hora exacta de inicio de síntomas (Ventana terapéutica < 4.5 horas).',
+      'Verificar Glucemia capilar (descartar hipoglucemia mimética).',
+      'Si candidato a trombolisis: PA debe ser < 185/110 mmHg (Labetalol / Nicardipino si es necesario).',
+      'Alteplasa (rtPA) 0.9 mg/kg IV (10% en bolo en 1 min, 90% en infusión de 60 min).'
+    ],
+    medications: [
+      { name: 'Alteplasa (rtPA) 50mg', dosage: '0.9 mg/kg IV (Max 90mg)', indication: 'Trombolisis IV en ventana < 4.5h' },
+      { name: 'Labetalol 100mg/20ml', dosage: '10 - 20 mg IV en 2 min', indication: 'Control de hipertensión pre-trombolisis' }
+    ]
+  },
+  {
+    id: 'p7',
+    title: 'Intoxicaciones Agudas (Organofosforados, BZD, Paracetamol)',
+    category: 'toxicology',
+    categoryLabel: 'Toxicología & Envenenamiento',
+    description: 'Abordaje de intoxicaciones agudas, desintoxicación y antídotos específicos.',
+    steps: [
+      'Asegurar vía aérea y descontaminación cutánea o gástrica (Carbón activado 1g/kg VO si < 1 hora).',
+      'Organofosforados (SÍNDROME COLINÉRGICO): Atropina 2 a 5 mg IV cada 5-10 min hasta atropinización (desaparición de estertores y broncorrea).',
+      'Benzodiacepinas: Flumazenil 0.2 mg IV en 30 seg (máximo 1 mg) con precaución en convulsivos o usuarios crónicos.',
+      'Sobredosis Paracetamol: N-Acetilcisteína (NAC) según nomograma de Rumack-Matthew (140 mg/kg carga VO/IV).'
+    ],
+    medications: [
+      { name: 'Atropina 1mg/ml', dosage: '2 - 5 mg IV c/5-10 min', indication: 'Antídoto en intoxicación organofosforada' },
+      { name: 'Flumazenil 0.5mg/5ml', dosage: '0.2 mg IV bolo', indication: 'Antagonista de benzodiacepinas' },
+      { name: 'Carbón Activado', dosage: '1 g/kg VO / SNG', indication: 'Descontaminación gástrica precoz' }
     ]
   }
 ];

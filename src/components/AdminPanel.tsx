@@ -142,7 +142,11 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       purchaseDate: new Date().toISOString().split('T')[0],
       status: 'Activa',
       maxActivations: 1,
-      activatedDeviceId: null
+      activatedDeviceId: null,
+      monthlyFee: 70,
+      paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
+      firstHalfPaymentStatus: 'Pagado',
+      secondHalfPaymentStatus: 'Pagado'
     };
 
     let serverSuccess = false;
@@ -262,7 +266,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     setSuccessMsg('');
 
     if (!editDocName.trim() || !editCédula.trim() || !editPassword.trim() || !editKey.trim()) {
-      alert('Por favor complete todos los campos.');
+      setErrorMsg('Por favor complete todos los campos.');
       return;
     }
 
@@ -301,7 +305,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     }
 
     if (apiError) {
-      alert(apiError);
+      setErrorMsg(apiError);
       return;
     }
 
@@ -333,16 +337,18 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
 
   // Filter licenses based on search term
   const filteredLicenses = licensesList.filter(lic => 
-    lic.doctorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lic.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lic.username.includes(searchTerm)
+    (lic?.doctorName || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+    (lic?.key || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+    (lic?.username || '').includes(searchTerm || '')
   );
 
   // Compute licensing statistics
   const totalSalesCount = licensesList.length;
   const activeCount = licensesList.filter(l => l.status === 'Activa').length;
   const boundCount = licensesList.filter(l => l.activatedDeviceId !== null).length;
-  const totalRevenue = totalSalesCount * 149.99; // Mock price
+  const monthlyFeePerLicense = 70; // $70 USD mensual
+  const biweeklyInstallment = 35; // $35 USD por quincena / fin de mes
+  const totalMonthlyCollection = activeCount * monthlyFeePerLicense;
 
   return (
     <div className="min-h-screen bg-brand-dark text-white p-6 md:p-10 flex flex-col">
@@ -356,7 +362,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
             </h1>
           </div>
           <p className="text-sm text-slate-400">
-            Administración de licencias seguras y activación de dispositivos físicos para DOSIA
+            Administración de licencias activas y control de pagos quincenales / fin de mes
           </p>
         </div>
         
@@ -372,18 +378,9 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-brand-navy-light/40 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Licencias Emitidas</span>
-            <span className="text-2xl font-bold font-mono">{totalSalesCount}</span>
-          </div>
-          <span className="bg-brand-teal/10 text-brand-teal p-3 rounded-xl border border-brand-teal/20">
-            <Key className="w-5 h-5" />
-          </span>
-        </div>
-
-        <div className="bg-brand-navy-light/40 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Ventas Estimadas</span>
-            <span className="text-2xl font-bold font-mono text-emerald-400">${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Valor Licencia Médica</span>
+            <span className="text-2xl font-bold font-mono text-emerald-400">${monthlyFeePerLicense}.00 <span className="text-xs text-slate-400">/mes</span></span>
+            <span className="text-[10px] text-slate-400 block mt-0.5 font-medium">2 Pagos de $35.00 (Quincena y Fin de Mes)</span>
           </div>
           <span className="bg-emerald-500/10 text-emerald-400 p-3 rounded-xl border border-emerald-500/20">
             <DollarSign className="w-5 h-5" />
@@ -392,11 +389,23 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
 
         <div className="bg-brand-navy-light/40 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Cuentas Activas</span>
-            <span className="text-2xl font-bold font-mono text-brand-teal-pastel">{activeCount}</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Recaudación Mensual Est.</span>
+            <span className="text-2xl font-bold font-mono text-teal-300">${totalMonthlyCollection.toFixed(2)} <span className="text-xs text-slate-400">USD</span></span>
+            <span className="text-[10px] text-slate-400 block mt-0.5 font-medium">Basado en {activeCount} licencias activas</span>
           </div>
-          <span className="bg-teal-500/10 text-brand-teal-pastel p-3 rounded-xl border border-teal-500/20">
-            <CheckCircle className="w-5 h-5" />
+          <span className="bg-teal-500/10 text-teal-300 p-3 rounded-xl border border-teal-500/20">
+            <Activity className="w-5 h-5" />
+          </span>
+        </div>
+
+        <div className="bg-brand-navy-light/40 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Licencias Creadas</span>
+            <span className="text-2xl font-bold font-mono text-brand-teal-pastel">{totalSalesCount} <span className="text-xs text-slate-400">({activeCount} Activas)</span></span>
+            <span className="text-[10px] text-slate-400 block mt-0.5 font-medium">Licencias registradas en sistema</span>
+          </div>
+          <span className="bg-brand-teal/10 text-brand-teal p-3 rounded-xl border border-brand-teal/20">
+            <Key className="w-5 h-5" />
           </span>
         </div>
 
@@ -404,6 +413,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
           <div>
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Dispositivos Vinculados</span>
             <span className="text-2xl font-bold font-mono text-cyan-400">{boundCount} <span className="text-xs text-slate-500">/ {totalSalesCount}</span></span>
+            <span className="text-[10px] text-slate-400 block mt-0.5 font-medium">1 Dispositivo Físico por Licencia</span>
           </div>
           <span className="bg-cyan-500/10 text-cyan-400 p-3 rounded-xl border border-cyan-500/20">
             <Smartphone className="w-5 h-5" />
@@ -433,6 +443,16 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                 <span>{successMsg}</span>
               </div>
             )}
+
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-xs text-emerald-300 space-y-1">
+              <div className="flex items-center justify-between font-bold">
+                <span>Valor Licencia Médica:</span>
+                <span className="text-emerald-400 font-mono text-sm">$70.00 USD / mes</span>
+              </div>
+              <p className="text-[10px] text-slate-300 leading-normal">
+                Modalidad de Pago: 2 partes iguales de <strong>$35.00 USD</strong> (Quincena y Fin de Mes).
+              </p>
+            </div>
 
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">Código de Licencia</label>
@@ -559,6 +579,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                       <td className="py-3.5 px-3">
                         <div className="font-mono text-xs text-slate-200 select-all font-bold">{lic.key}</div>
                         <div className="text-slate-400 text-[10px]">Compra: {lic.purchaseDate}</div>
+                        <div className="text-emerald-400 text-[10px] font-semibold mt-0.5">$70.00/mes (Quincena $35 / Fin de Mes $35)</div>
                       </td>
                       <td className="py-3.5 px-3 text-center">
                         <button
@@ -757,22 +778,21 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                   const doctorName = deleteConfirmDocName;
                   setDeleteConfirmKey('');
                   setDeleteConfirmDocName('');
+
+                  // Update local list & localStorage immediately
+                  const updatedList = licensesList.filter(l => l.key !== key);
+                  setLicensesList(updatedList);
+                  saveLocalLicenses(updatedList);
+                  setSuccessMsg(`Licencia de ${doctorName} eliminada correctamente.`);
+
                   try {
-                    const res = await fetch('/api/licenses/delete', {
+                    await fetch('/api/licenses/delete', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ key })
                     });
-
-                    if (res.ok) {
-                      setSuccessMsg(`Licencia de ${doctorName} eliminada correctamente.`);
-                      fetchLicenses();
-                    } else {
-                      const data = await res.json();
-                      alert(data.error || 'Error al eliminar la licencia.');
-                    }
                   } catch (err) {
-                    alert('No se pudo conectar con el servidor.');
+                    console.warn('Servidor no disponible para eliminar licencia online, eliminada localmente:', err);
                   }
                 }}
                 className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
