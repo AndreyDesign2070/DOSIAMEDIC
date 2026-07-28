@@ -7,46 +7,24 @@ import {
   Edit, Trash2, X
 } from 'lucide-react';
 import DosiaAppIcon from './DosiaAppIcon';
+import { 
+  subscribeCloudLicenses, 
+  saveCloudLicense, 
+  deleteCloudLicense, 
+  DEFAULT_SEED_LICENSES,
+  fetchCloudLicenses
+} from '../lib/firebase';
 
 interface AdminPanelProps {
   onBack: () => void;
 }
 
-export const DEFAULT_SEED_LICENSES: License[] = [
-  {
-    key: 'MED-8XQ2-4P7K-Z91A',
-    doctorName: 'Dr. Roberto Mendoza',
-    username: '0912345678',
-    password: 'doctor123',
-    purchaseDate: '2026-01-15',
-    status: 'Activa',
-    maxActivations: 1,
-    activatedDeviceId: null,
-    monthlyFee: 70,
-    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
-    firstHalfPaymentStatus: 'Pagado',
-    secondHalfPaymentStatus: 'Pagado'
-  },
-  {
-    key: 'MED-9YF4-2K3L-X82B',
-    doctorName: 'Dra. Elena Gómez',
-    username: '0987654321',
-    password: 'doctor123',
-    purchaseDate: '2026-02-01',
-    status: 'Activa',
-    maxActivations: 1,
-    activatedDeviceId: null,
-    monthlyFee: 70,
-    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
-    firstHalfPaymentStatus: 'Pagado',
-    secondHalfPaymentStatus: 'Pagado'
-  }
-];
+export { DEFAULT_SEED_LICENSES };
 
 export default function AdminPanel({ onBack }: AdminPanelProps) {
   const [licensesList, setLicensesList] = useState<License[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   // Edit license states
   const [isEditMode, setIsEditMode] = useState(false);
@@ -92,60 +70,15 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     return DEFAULT_SEED_LICENSES;
   };
 
-  // Fetch licenses from server with fallback and merge with local cache
-  const fetchLicenses = async (isBackground = false) => {
-    if (!isBackground && licensesList.length === 0) {
-      setLoading(true);
-    }
-
-    let loadedFromServer = false;
-
-    try {
-      const res = await fetch('/api/licenses');
-      if (res.ok) {
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await res.json();
-          if (data && Array.isArray(data.licenses) && data.licenses.length > 0) {
-            const serverList: License[] = data.licenses.filter((l: License) => l && l.key);
-            
-            setLicensesList((prev) => {
-              if (JSON.stringify(prev) !== JSON.stringify(serverList)) {
-                return serverList;
-              }
-              return prev;
-            });
-            saveLocalLicenses(serverList);
-            loadedFromServer = true;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Backend server unreachable, using local storage cache for licenses:', e);
-    }
-
-    if (!loadedFromServer) {
-      const cached = getLocalLicenses();
-      setLicensesList((prev) => {
-        if (JSON.stringify(prev) !== JSON.stringify(cached)) {
-          return cached;
-        }
-        return prev;
-      });
-    }
-
-    if (!isBackground) {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchLicenses(false);
-    // Real-time polling every 3 seconds across all devices without UI flickering
-    const interval = setInterval(() => {
-      fetchLicenses(true);
-    }, 3000);
-    return () => clearInterval(interval);
+    // Subscribe to real-time Cloud Firestore updates
+    const unsubscribe = subscribeCloudLicenses((cloudLicenses) => {
+      setLicensesList(cloudLicenses);
+      saveLocalLicenses(cloudLicenses);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Generate a random license key in format: MED-8XQ2-4P7K-Z91A
@@ -183,7 +116,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     const password = newPassword.trim();
     const key = newKey.trim();
 
-    // Check duplicate cédula or key locally first
+    // Check duplicate cédula or key
     const currentList = licensesList.length > 0 ? licensesList : getLocalLicenses();
     const normK = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const normU = (u: string) => (u || '').trim().toLowerCase();
@@ -194,7 +127,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     }
 
     const newLicenseObj: License = {
-      key,
+      key: normK(key),
       doctorName: docName,
       username: cédula,
       password,
@@ -208,53 +141,22 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       secondHalfPaymentStatus: 'Pagado'
     };
 
-    let serverSuccess = false;
-    let apiError = '';
-
     try {
-      const res = await fetch('/api/licenses', {
+      await saveCloudLicense(newLicenseObj);
+      fetch('/api/licenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key,
-          doctorName: docName,
-          username: cédula,
-          password,
-          status: 'Activa',
-          maxActivations: 1
-        })
-      });
-
-      const contentType = res.headers.get('content-type');
-      let data: any = {};
-      if (contentType && contentType.includes('application/json')) {
-        data = await res.json();
-      }
-
-      if (!res.ok) {
-        if (data && data.error) {
-          apiError = data.error;
-        } else {
-          console.warn(`Server responded with HTTP status ${res.status}, continuing with local registration.`);
-        }
-      } else {
-        serverSuccess = true;
-      }
-    } catch (err: any) {
-      console.warn('Server offline/unreachable during POST /api/licenses:', err);
+        body: JSON.stringify(newLicenseObj)
+      }).catch(() => {});
+    } catch (err) {
+      console.error('Error al guardar licencia en la nube:', err);
     }
 
-    if (apiError) {
-      setErrorMsg(apiError);
-      return;
-    }
-
-    // Always update local state & localStorage so the license is available immediately
-    const updatedList = [newLicenseObj, ...currentList.filter(l => l.key !== key)];
+    const updatedList = [newLicenseObj, ...currentList.filter(l => normK(l.key) !== normK(key))];
     setLicensesList(updatedList);
     saveLocalLicenses(updatedList);
 
-    setSuccessMsg(`¡Licencia para ${docName} emitida y lista para activarse!`);
+    setSuccessMsg(`¡Licencia para ${docName} emitida y guardada en la nube!`);
     
     // Reset inputs
     setNewDocName('');
@@ -265,45 +167,55 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
 
   // Toggle activation status
   const handleToggleStatus = async (key: string) => {
+    let targetLic: License | null = null;
     const updatedList = licensesList.map(lic => {
       if (lic.key === key) {
-        return { ...lic, status: lic.status === 'Activa' ? 'Inactiva' : 'Activa' };
+        targetLic = { ...lic, status: lic.status === 'Activa' ? 'Inactiva' : 'Activa' };
+        return targetLic;
       }
       return lic;
     });
     setLicensesList(updatedList);
     saveLocalLicenses(updatedList);
 
-    try {
-      await fetch('/api/licenses/toggle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key })
-      });
-    } catch (e) {
-      console.warn('Server offline during toggle status:', e);
+    if (targetLic) {
+      try {
+        await saveCloudLicense(targetLic);
+        fetch('/api/licenses/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key })
+        }).catch(() => {});
+      } catch (e) {
+        console.error('Error guardando estado en la nube:', e);
+      }
     }
   };
 
   // Transfer / Reset Activation device ID
   const handleResetDevice = async (key: string) => {
+    let targetLic: License | null = null;
     const updatedList = licensesList.map(lic => {
       if (lic.key === key) {
-        return { ...lic, activatedDeviceId: null };
+        targetLic = { ...lic, activatedDeviceId: null };
+        return targetLic;
       }
       return lic;
     });
     setLicensesList(updatedList);
     saveLocalLicenses(updatedList);
 
-    try {
-      await fetch('/api/licenses/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, newDeviceId: null })
-      });
-    } catch (e) {
-      console.warn('Server offline during reset device:', e);
+    if (targetLic) {
+      try {
+        await saveCloudLicense(targetLic);
+        fetch('/api/licenses/transfer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, newDeviceId: null })
+        }).catch(() => {});
+      } catch (e) {
+        console.error('Error reseteando dispositivo en la nube:', e);
+      }
     }
   };
 
@@ -334,7 +246,6 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     const password = editPassword.trim();
     const key = editKey.trim();
 
-    // Check duplicate cédula or key locally if key or username changed
     const normK = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const normU = (u: string) => (u || '').trim().toLowerCase();
     const normOrigK = normK(editOriginalKey);
@@ -352,57 +263,49 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       return;
     }
 
-    let apiError = '';
+    let existingLic = licensesList.find(l => normK(l.key) === normOrigK);
+    const updatedLic: License = {
+      key: normK(key),
+      doctorName: docName,
+      username: cédula,
+      password,
+      purchaseDate: existingLic?.purchaseDate || new Date().toISOString().split('T')[0],
+      status: editStatus as any,
+      maxActivations: existingLic?.maxActivations || 1,
+      activatedDeviceId: existingLic?.activatedDeviceId || null,
+      monthlyFee: existingLic?.monthlyFee || 70,
+      paymentScheme: existingLic?.paymentScheme || 'Quincenal y Fin de Mes ($35 / $35)',
+      firstHalfPaymentStatus: existingLic?.firstHalfPaymentStatus || 'Pagado',
+      secondHalfPaymentStatus: existingLic?.secondHalfPaymentStatus || 'Pagado'
+    };
 
     try {
-      const res = await fetch('/api/licenses/update', {
+      if (normOrigK !== normK(key)) {
+        await deleteCloudLicense(normOrigK);
+      }
+      await saveCloudLicense(updatedLic);
+      fetch('/api/licenses/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           originalKey: editOriginalKey,
-          key,
-          doctorName: docName,
-          username: cédula,
-          password,
-          status: editStatus
+          ...updatedLic
         })
-      });
-
-      const contentType = res.headers.get('content-type');
-      let data: any = {};
-      if (contentType && contentType.includes('application/json')) {
-        data = await res.json();
-      }
-
-      if (!res.ok && data && data.error) {
-        apiError = data.error;
-      }
+      }).catch(() => {});
     } catch (err) {
-      console.warn('Server offline during update license:', err);
-    }
-
-    if (apiError) {
-      setErrorMsg(apiError);
-      return;
+      console.error('Error actualizando licencia en la nube:', err);
     }
 
     const updatedList = licensesList.map(lic => {
-      if (lic.key === editOriginalKey) {
-        return {
-          ...lic,
-          key,
-          doctorName: docName,
-          username: cédula,
-          password,
-          status: editStatus
-        };
+      if (normK(lic.key) === normOrigK) {
+        return updatedLic;
       }
       return lic;
     });
     setLicensesList(updatedList);
     saveLocalLicenses(updatedList);
 
-    setSuccessMsg(`Licencia para ${docName} actualizada correctamente.`);
+    setSuccessMsg(`Licencia para ${docName} actualizada correctamente en la nube.`);
     setIsEditMode(false);
   };
 
@@ -844,21 +747,22 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                   setDeleteConfirmKey('');
                   setDeleteConfirmDocName('');
 
-                  // Update local list & localStorage immediately
-                  const updatedList = licensesList.filter(l => l.key !== key);
-                  setLicensesList(updatedList);
-                  saveLocalLicenses(updatedList);
-                  setSuccessMsg(`Licencia de ${doctorName} eliminada correctamente.`);
-
+                  // Delete from cloud and update local list
                   try {
-                    await fetch('/api/licenses/delete', {
+                    await deleteCloudLicense(key);
+                    fetch('/api/licenses/delete', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ key })
-                    });
+                    }).catch(() => {});
                   } catch (err) {
-                    console.warn('Servidor no disponible para eliminar licencia online, eliminada localmente:', err);
+                    console.error('Error al eliminar en la nube:', err);
                   }
+
+                  const updatedList = licensesList.filter(l => l.key !== key);
+                  setLicensesList(updatedList);
+                  saveLocalLicenses(updatedList);
+                  setSuccessMsg(`Licencia de ${doctorName} eliminada correctamente de la nube.`);
                 }}
                 className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
               >

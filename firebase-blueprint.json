@@ -1,0 +1,24 @@
+{
+  "entities": {
+    "licenses": {
+      "title": "Licenses",
+      "description": "Doctor licenses for DOSIA application",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "doctorName": { "type": "string" },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "purchaseDate": { "type": "string" },
+        "status": { "type": "string" },
+        "maxActivations": { "type": "number" },
+        "activatedDeviceId": { "type": "string" },
+        "monthlyFee": { "type": "number" },
+        "paymentScheme": { "type": "string" },
+        "firstHalfPaymentStatus": { "type": "string" },
+        "secondHalfPaymentStatus": { "type": "string" }
+      },
+      "required": ["key", "doctorName", "username", "password"]
+    }
+  }
+}
