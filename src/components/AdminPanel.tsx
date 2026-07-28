@@ -53,8 +53,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
-          const dummyKeys = ['MED-8XQ2-4P7K-Z91A', 'MED-9YF4-2K3L-X82B', 'MED-1A2B-3C4D-5E6F'];
-          return parsed.filter((l: License) => !dummyKeys.includes(l.key) && l.doctorName !== 'Dr. Juan Pérez');
+          return parsed.filter((l: License) => l && l.key);
         }
       }
     } catch (e) {}
@@ -74,44 +73,15 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
         if (contentType && contentType.includes('application/json')) {
           const data = await res.json();
           if (data && Array.isArray(data.licenses)) {
-            const normKey = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-            
             const serverList: License[] = data.licenses.filter((l: License) => l && l.key);
-            const localList: License[] = getLocalLicenses();
-            const map = new Map<string, License>();
-
-            // Server licenses take priority
-            serverList.forEach((l: License) => {
-              if (l && l.key) {
-                map.set(normKey(l.key), l);
-              }
-            });
-
-            // Merge local licenses that might not be on server yet
-            localList.forEach((l: License) => {
-              if (l && l.key) {
-                const k = normKey(l.key);
-                if (!map.has(k)) {
-                  map.set(k, l);
-                  // Sync missing local license to server
-                  fetch('/api/licenses', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(l)
-                  }).catch(() => {});
-                }
-              }
-            });
-
-            const merged = Array.from(map.values());
-
+            
             setLicensesList((prev) => {
-              if (JSON.stringify(prev) !== JSON.stringify(merged)) {
-                return merged;
+              if (JSON.stringify(prev) !== JSON.stringify(serverList)) {
+                return serverList;
               }
               return prev;
             });
-            saveLocalLicenses(merged);
+            saveLocalLicenses(serverList);
           }
         }
       }

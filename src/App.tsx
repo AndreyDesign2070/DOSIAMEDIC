@@ -283,15 +283,8 @@ export default function App() {
           return;
         }
 
-        if (lic.activatedDeviceId && lic.activatedDeviceId !== deviceId) {
-          setLoginError('La licencia de este usuario está vinculada a otro dispositivo. Contacte al administrador.');
-          return;
-        }
-
-        if (!lic.activatedDeviceId) {
-          lic.activatedDeviceId = deviceId;
-          localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
-        }
+        lic.activatedDeviceId = deviceId;
+        localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
 
         const doctorData = {
           name: lic.doctorName,
