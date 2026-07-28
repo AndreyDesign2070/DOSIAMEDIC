@@ -161,41 +161,36 @@ export default function App() {
           setLicenseError('Esta licencia se encuentra inactiva. Contacte al administrador.');
           return;
         }
-        if (!lic.activatedDeviceId || lic.activatedDeviceId === activeDeviceId || lic.activatedDeviceId === 'null') {
-          lic.activatedDeviceId = activeDeviceId;
-          localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
-          localStorage.setItem('dosia_activated_license_key', lic.key);
-          setLicenseSuccess('¡Licencia verificada y vinculada exitosamente a este dispositivo!');
-          setLicenseActivated(true);
+        lic.activatedDeviceId = activeDeviceId;
+        localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
+        localStorage.setItem('dosia_activated_license_key', lic.key);
+        setLicenseSuccess('¡Licencia verificada y vinculada exitosamente!');
+        setLicenseActivated(true);
 
-          // Back-sync to server in background
-          fetch('/api/licenses', {
+        // Back-sync to server in background
+        fetch('/api/licenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: lic.key,
+            doctorName: lic.doctorName,
+            username: lic.username,
+            password: lic.password,
+            status: lic.status,
+            maxActivations: 1
+          })
+        }).then(() => {
+          fetch('/api/licenses/activate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              key: lic.key,
-              doctorName: lic.doctorName,
-              username: lic.username,
-              password: lic.password,
-              status: lic.status,
-              maxActivations: 1
-            })
-          }).then(() => {
-            fetch('/api/licenses/activate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ key: lic.key, deviceId: activeDeviceId })
-            }).catch(() => {});
+            body: JSON.stringify({ key: lic.key, deviceId: activeDeviceId })
           }).catch(() => {});
+        }).catch(() => {});
 
-          setTimeout(() => {
-            setCurrentView('login');
-          }, 1200);
-          return;
-        } else {
-          setLicenseError('Esta licencia ya está vinculada y activa en otro dispositivo. Solicite al administrador liberar el celular.');
-          return;
-        }
+        setTimeout(() => {
+          setCurrentView('login');
+        }, 1200);
+        return;
       }
 
       setLicenseError(data.error || 'La clave de licencia ingresada no es válida o no existe.');
@@ -215,18 +210,14 @@ export default function App() {
         setLicenseError('Esta licencia se encuentra inactiva. Contacte al administrador.');
         return;
       }
-      if (!lic.activatedDeviceId || lic.activatedDeviceId === activeDeviceId || lic.activatedDeviceId === 'null') {
-        lic.activatedDeviceId = activeDeviceId;
-        localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
-        localStorage.setItem('dosia_activated_license_key', lic.key);
-        setLicenseSuccess('¡Licencia verificada y vinculada exitosamente a este celular!');
-        setLicenseActivated(true);
-        setTimeout(() => {
-          setCurrentView('login');
-        }, 1200);
-      } else {
-        setLicenseError('Esta licencia ya está vinculada a otro celular. Solicite al administrador liberar el celular.');
-      }
+      lic.activatedDeviceId = activeDeviceId;
+      localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
+      localStorage.setItem('dosia_activated_license_key', lic.key);
+      setLicenseSuccess('¡Licencia verificada y vinculada exitosamente!');
+      setLicenseActivated(true);
+      setTimeout(() => {
+        setCurrentView('login');
+      }, 1200);
     }
   };
 

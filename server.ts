@@ -26,9 +26,7 @@ function loadLicenses() {
       const data = fs.readFileSync(LICENSES_FILE, 'utf8');
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed)) {
-        // Filter out legacy fake demo accounts if present
-        const dummyKeys = ['MED-8XQ2-4P7K-Z91A', 'MED-9YF4-2K3L-X82B', 'MED-1A2B-3C4D-5E6F'];
-        licenses = parsed.filter(l => !dummyKeys.includes(l.key) && l.doctorName !== 'Dr. Juan Pérez');
+        licenses = parsed.filter(l => l && l.key);
       }
     } else {
       saveLicenses();
