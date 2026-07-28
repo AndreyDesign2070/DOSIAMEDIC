@@ -12,6 +12,37 @@ interface AdminPanelProps {
   onBack: () => void;
 }
 
+export const DEFAULT_SEED_LICENSES: License[] = [
+  {
+    key: 'MED-8XQ2-4P7K-Z91A',
+    doctorName: 'Dr. Roberto Mendoza',
+    username: '0912345678',
+    password: 'doctor123',
+    purchaseDate: '2026-01-15',
+    status: 'Activa',
+    maxActivations: 1,
+    activatedDeviceId: null,
+    monthlyFee: 70,
+    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
+    firstHalfPaymentStatus: 'Pagado',
+    secondHalfPaymentStatus: 'Pagado'
+  },
+  {
+    key: 'MED-9YF4-2K3L-X82B',
+    doctorName: 'Dra. Elena Gómez',
+    username: '0987654321',
+    password: 'doctor123',
+    purchaseDate: '2026-02-01',
+    status: 'Activa',
+    maxActivations: 1,
+    activatedDeviceId: null,
+    monthlyFee: 70,
+    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
+    firstHalfPaymentStatus: 'Pagado',
+    secondHalfPaymentStatus: 'Pagado'
+  }
+];
+
 export default function AdminPanel({ onBack }: AdminPanelProps) {
   const [licensesList, setLicensesList] = useState<License[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,12 +83,13 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       const cached = localStorage.getItem('dosia_local_licenses');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.filter((l: License) => l && l.key);
         }
       }
     } catch (e) {}
-    return [];
+    saveLocalLicenses(DEFAULT_SEED_LICENSES);
+    return DEFAULT_SEED_LICENSES;
   };
 
   // Fetch licenses from server with fallback and merge with local cache
@@ -66,13 +98,15 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       setLoading(true);
     }
 
+    let loadedFromServer = false;
+
     try {
       const res = await fetch('/api/licenses');
       if (res.ok) {
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await res.json();
-          if (data && Array.isArray(data.licenses)) {
+          if (data && Array.isArray(data.licenses) && data.licenses.length > 0) {
             const serverList: License[] = data.licenses.filter((l: License) => l && l.key);
             
             setLicensesList((prev) => {
@@ -82,11 +116,15 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
               return prev;
             });
             saveLocalLicenses(serverList);
+            loadedFromServer = true;
           }
         }
       }
     } catch (e) {
       console.warn('Backend server unreachable, using local storage cache for licenses:', e);
+    }
+
+    if (!loadedFromServer) {
       const cached = getLocalLicenses();
       setLicensesList((prev) => {
         if (JSON.stringify(prev) !== JSON.stringify(cached)) {
@@ -94,10 +132,10 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
         }
         return prev;
       });
-    } finally {
-      if (!isBackground) {
-        setLoading(false);
-      }
+    }
+
+    if (!isBackground) {
+      setLoading(false);
     }
   };
 
@@ -296,6 +334,24 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     const password = editPassword.trim();
     const key = editKey.trim();
 
+    // Check duplicate cédula or key locally if key or username changed
+    const normK = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const normU = (u: string) => (u || '').trim().toLowerCase();
+    const normOrigK = normK(editOriginalKey);
+
+    const duplicateKey = licensesList.some(l => normK(l.key) === normK(key) && normK(l.key) !== normOrigK);
+    const duplicateUser = licensesList.some(l => normU(l.username) === normU(cédula) && normK(l.key) !== normOrigK);
+
+    if (duplicateKey) {
+      setErrorMsg('La clave de licencia ya se encuentra registrada en otro usuario.');
+      return;
+    }
+
+    if (duplicateUser) {
+      setErrorMsg('La cédula de usuario ya se encuentra registrada en otro usuario.');
+      return;
+    }
+
     let apiError = '';
 
     try {
@@ -318,8 +374,8 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
         data = await res.json();
       }
 
-      if (!res.ok) {
-        apiError = data.error || 'Error al actualizar la licencia.';
+      if (!res.ok && data && data.error) {
+        apiError = data.error;
       }
     } catch (err) {
       console.warn('Server offline during update license:', err);

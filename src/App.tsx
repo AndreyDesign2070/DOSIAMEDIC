@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Key, Eye, EyeOff, ShieldCheck, HeartPulse, Sparkles, Smartphone, Award } from 'lucide-react';
 import Dashboard from './components/Dashboard';
-import AdminPanel from './components/AdminPanel';
+import AdminPanel, { DEFAULT_SEED_LICENSES } from './components/AdminPanel';
 import DosiaLogo from './components/DosiaLogo';
 import DosiaAppIcon from './components/DosiaAppIcon';
 import CreateIconModal from './components/CreateIconModal';
@@ -152,7 +152,14 @@ export default function App() {
 
       // If server returned error or not found, check local storage cache before failing
       const cached = localStorage.getItem('dosia_local_licenses');
-      const localList: License[] = cached ? JSON.parse(cached) : [];
+      let localList: License[] = [];
+      if (cached) {
+        try { localList = JSON.parse(cached); } catch (e) {}
+      }
+      if (!Array.isArray(localList) || localList.length === 0) {
+        localList = DEFAULT_SEED_LICENSES;
+        localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
+      }
       const normKey = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
       const lic = localList.find((l: License) => normKey(l?.key) === normKey(keyToActivate));
 
@@ -198,7 +205,14 @@ export default function App() {
       console.warn('Servidor no disponible para activación online, verificando almacenamiento local:', err);
       // Local fallback
       const cached = localStorage.getItem('dosia_local_licenses');
-      const localList: License[] = cached ? JSON.parse(cached) : [];
+      let localList: License[] = [];
+      if (cached) {
+        try { localList = JSON.parse(cached); } catch (e) {}
+      }
+      if (!Array.isArray(localList) || localList.length === 0) {
+        localList = DEFAULT_SEED_LICENSES;
+        localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
+      }
       const normKey = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
       const lic = localList.find((l: License) => normKey(l?.key) === normKey(keyToActivate));
 
@@ -267,7 +281,14 @@ export default function App() {
 
       // Check local storage fallback before failing
       const cached = localStorage.getItem('dosia_local_licenses');
-      const localList: License[] = cached ? JSON.parse(cached) : [];
+      let localList: License[] = [];
+      if (cached) {
+        try { localList = JSON.parse(cached); } catch (e) {}
+      }
+      if (!Array.isArray(localList) || localList.length === 0) {
+        localList = DEFAULT_SEED_LICENSES;
+        localStorage.setItem('dosia_local_licenses', JSON.stringify(localList));
+      }
       const normUser = (u: string) => (u || '').trim().toLowerCase();
 
       const lic = localList.find((l: License) => normUser(l?.username) === normUser(uInput));

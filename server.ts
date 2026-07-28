@@ -13,6 +13,37 @@ app.use(express.json());
 const PORT = 3000;
 const LICENSES_FILE = path.join(process.cwd(), 'data_licenses.json');
 
+const DEFAULT_SEED_LICENSES = [
+  {
+    key: 'MED-8XQ2-4P7K-Z91A',
+    doctorName: 'Dr. Roberto Mendoza',
+    username: '0912345678',
+    password: 'doctor123',
+    purchaseDate: '2026-01-15',
+    status: 'Activa',
+    maxActivations: 1,
+    activatedDeviceId: null,
+    monthlyFee: 70,
+    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
+    firstHalfPaymentStatus: 'Pagado',
+    secondHalfPaymentStatus: 'Pagado'
+  },
+  {
+    key: 'MED-9YF4-2K3L-X82B',
+    doctorName: 'Dra. Elena Gómez',
+    username: '0987654321',
+    password: 'doctor123',
+    purchaseDate: '2026-02-01',
+    status: 'Activa',
+    maxActivations: 1,
+    activatedDeviceId: null,
+    monthlyFee: 70,
+    paymentScheme: 'Quincenal y Fin de Mes ($35 / $35)',
+    firstHalfPaymentStatus: 'Pagado',
+    secondHalfPaymentStatus: 'Pagado'
+  }
+];
+
 // Initialize Licenses Database
 let licenses: any[] = [];
 
@@ -25,14 +56,19 @@ function loadLicenses() {
     if (fs.existsSync(LICENSES_FILE)) {
       const data = fs.readFileSync(LICENSES_FILE, 'utf8');
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         licenses = parsed.filter(l => l && l.key);
+      } else {
+        licenses = [...DEFAULT_SEED_LICENSES];
+        saveLicenses();
       }
     } else {
+      licenses = [...DEFAULT_SEED_LICENSES];
       saveLicenses();
     }
   } catch (error) {
     console.error('Error loading licenses:', error);
+    licenses = [...DEFAULT_SEED_LICENSES];
   }
 }
 
