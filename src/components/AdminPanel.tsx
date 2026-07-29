@@ -12,7 +12,9 @@ import {
   saveCloudLicense, 
   deleteCloudLicense, 
   DEFAULT_SEED_LICENSES,
-  fetchCloudLicenses
+  fetchCloudLicenses,
+  mergeLicenses,
+  addDeletedLicenseKey
 } from '../lib/firebase';
 
 interface AdminPanelProps {
@@ -22,9 +24,29 @@ interface AdminPanelProps {
 export { DEFAULT_SEED_LICENSES };
 
 export default function AdminPanel({ onBack }: AdminPanelProps) {
-  const [licensesList, setLicensesList] = useState<License[]>([]);
+  const getLocalLicenses = (): License[] => {
+    try {
+      const cached = localStorage.getItem('dosia_local_licenses');
+      if (cached !== null) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          return mergeLicenses(parsed, DEFAULT_SEED_LICENSES);
+        }
+      }
+      const cloudCached = localStorage.getItem('dosia_cached_cloud_licenses');
+      if (cloudCached !== null) {
+        const parsedCloud = JSON.parse(cloudCached);
+        if (Array.isArray(parsedCloud)) {
+          return mergeLicenses(parsedCloud, DEFAULT_SEED_LICENSES);
+        }
+      }
+    } catch (e) {}
+    return mergeLicenses(DEFAULT_SEED_LICENSES);
+  };
+
+  const [licensesList, setLicensesList] = useState<License[]>(() => getLocalLicenses());
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   
   // Edit license states
   const [isEditMode, setIsEditMode] = useState(false);
@@ -34,6 +56,8 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
   const [editCédula, setEditCédula] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editStatus, setEditStatus] = useState('Activa');
+  const [editDeviceId, setEditDeviceId] = useState<string | null>(null);
+  const [editErrorMsg, setEditErrorMsg] = useState('');
   
   // New license form state
   const [newDocName, setNewDocName] = useState('');
@@ -50,31 +74,30 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
   // Local storage helper
   const saveLocalLicenses = (list: License[]) => {
     try {
-      localStorage.setItem('dosia_local_licenses', JSON.stringify(list));
+      const cleaned = mergeLicenses(list);
+      localStorage.setItem('dosia_local_licenses', JSON.stringify(cleaned));
     } catch (e) {
       console.error('Error al guardar en localStorage:', e);
     }
   };
 
-  const getLocalLicenses = (): License[] => {
-    try {
-      const cached = localStorage.getItem('dosia_local_licenses');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter((l: License) => l && l.key);
-        }
-      }
-    } catch (e) {}
-    saveLocalLicenses(DEFAULT_SEED_LICENSES);
-    return DEFAULT_SEED_LICENSES;
-  };
-
   useEffect(() => {
-    // Subscribe to real-time Cloud Firestore updates
+    // 1. Fast load from Express backend
+    fetch('/api/licenses')
+      .then(res => res.json())
+      .then(data => {
+        if (data && Array.isArray(data.licenses)) {
+          setLicensesList(prev => mergeLicenses(data.licenses, prev, getLocalLicenses()));
+          setLoading(false);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Subscribe to real-time Cloud Firestore updates
     const unsubscribe = subscribeCloudLicenses((cloudLicenses) => {
-      setLicensesList(cloudLicenses);
-      saveLocalLicenses(cloudLicenses);
+      if (Array.isArray(cloudLicenses)) {
+        setLicensesList(cloudLicenses);
+      }
       setLoading(false);
     });
 
@@ -127,7 +150,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     }
 
     const newLicenseObj: License = {
-      key: normK(key),
+      key: key,
       doctorName: docName,
       username: cédula,
       password,
@@ -152,7 +175,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       console.error('Error al guardar licencia en la nube:', err);
     }
 
-    const updatedList = [newLicenseObj, ...currentList.filter(l => normK(l.key) !== normK(key))];
+    const updatedList = mergeLicenses([newLicenseObj], currentList);
     setLicensesList(updatedList);
     saveLocalLicenses(updatedList);
 
@@ -192,11 +215,15 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     }
   };
 
-  // Transfer / Reset Activation device ID
+  // Transfer / Reset Activation device ID (Desvincular Licencia)
   const handleResetDevice = async (key: string) => {
+    setErrorMsg('');
+    setSuccessMsg('');
     let targetLic: License | null = null;
+    const normK = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    
     const updatedList = licensesList.map(lic => {
-      if (lic.key === key) {
+      if (normK(lic.key) === normK(key)) {
         targetLic = { ...lic, activatedDeviceId: null };
         return targetLic;
       }
@@ -216,6 +243,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       } catch (e) {
         console.error('Error reseteando dispositivo en la nube:', e);
       }
+      setSuccessMsg(`🔓 Licencia desvinculada con éxito (${key}). El médico ya puede verificarla en otro dispositivo.`);
     }
   };
 
@@ -227,17 +255,20 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     setEditCédula(lic.username);
     setEditPassword(lic.password);
     setEditStatus(lic.status);
+    setEditDeviceId(lic.activatedDeviceId || null);
+    setEditErrorMsg('');
     setIsEditMode(true);
   };
 
   // Handle Update License
   const handleUpdateLicense = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEditErrorMsg('');
     setErrorMsg('');
     setSuccessMsg('');
 
     if (!editDocName.trim() || !editCédula.trim() || !editPassword.trim() || !editKey.trim()) {
-      setErrorMsg('Por favor complete todos los campos.');
+      setEditErrorMsg('Por favor complete todos los campos.');
       return;
     }
 
@@ -254,12 +285,12 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     const duplicateUser = licensesList.some(l => normU(l.username) === normU(cédula) && normK(l.key) !== normOrigK);
 
     if (duplicateKey) {
-      setErrorMsg('La clave de licencia ya se encuentra registrada en otro usuario.');
+      setEditErrorMsg('La clave de licencia ya se encuentra registrada en otro usuario.');
       return;
     }
 
     if (duplicateUser) {
-      setErrorMsg('La cédula de usuario ya se encuentra registrada en otro usuario.');
+      setEditErrorMsg('La cédula de usuario ya se encuentra registrada en otro usuario.');
       return;
     }
 
@@ -272,7 +303,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
       purchaseDate: existingLic?.purchaseDate || new Date().toISOString().split('T')[0],
       status: editStatus as any,
       maxActivations: existingLic?.maxActivations || 1,
-      activatedDeviceId: existingLic?.activatedDeviceId || null,
+      activatedDeviceId: editDeviceId,
       monthlyFee: existingLic?.monthlyFee || 70,
       paymentScheme: existingLic?.paymentScheme || 'Quincenal y Fin de Mes ($35 / $35)',
       firstHalfPaymentStatus: existingLic?.firstHalfPaymentStatus || 'Pagado',
@@ -305,7 +336,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
     setLicensesList(updatedList);
     saveLocalLicenses(updatedList);
 
-    setSuccessMsg(`Licencia para ${docName} actualizada correctamente en la nube.`);
+    setSuccessMsg(`Licencia para ${docName} actualizada correctamente.`);
     setIsEditMode(false);
   };
 
@@ -580,12 +611,22 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                       </td>
                       <td className="py-3.5 px-3 text-center">
                         {lic.activatedDeviceId && lic.activatedDeviceId !== 'null' ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/30 font-semibold">
-                            <Smartphone className="w-3.5 h-3.5" /> Vinculado
-                          </span>
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/30 font-semibold">
+                              <Smartphone className="w-3.5 h-3.5" /> Vinculado
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleResetDevice(lic.key)}
+                              className="bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/50 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 mt-0.5 shadow-sm"
+                              title="Desvincular este dispositivo para permitir ingresar la licencia en otro teléfono/PC"
+                            >
+                              🔓 Desvincular
+                            </button>
+                          </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-semibold">
-                            ✨ Listo para usar
+                            ✨ Sin Vincular (Listo)
                           </span>
                         )}
                       </td>
@@ -594,7 +635,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                           <button
                             onClick={() => startEditLicense(lic)}
                             className="bg-brand-teal/10 hover:bg-brand-teal/25 border border-brand-teal/30 text-brand-teal text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1"
-                            title="Editar licencia"
+                            title="Editar datos de licencia"
                           >
                             <Edit className="w-3.5 h-3.5" /> Editar
                           </button>
@@ -615,7 +656,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
           </div>
           
           <div className="mt-4 pt-3 border-t border-slate-800 text-right text-[10px] text-slate-500 font-mono">
-            Licensing Protocol: 1 Device Hardware Binding Binding (UUID Node verification)
+            Licensing Protocol: 1 Device Hardware Binding (UUID Node verification)
           </div>
         </div>
       </div>
@@ -637,6 +678,13 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
             </div>
 
             <form onSubmit={handleUpdateLicense} className="space-y-4">
+              {editErrorMsg && (
+                <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs rounded-lg flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span>{editErrorMsg}</span>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">Código de Licencia</label>
                 <input
@@ -660,7 +708,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
               </div>
 
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">Usuario (Cédula)</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">Usuario (Cédula de Identidad)</label>
                 <input
                   type="text"
                   value={editCédula}
@@ -682,7 +730,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
               </div>
 
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">Estado</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">Estado de la Licencia</label>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
@@ -691,6 +739,33 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                   <option value="Activa">Activa</option>
                   <option value="Inactiva">Inactiva</option>
                 </select>
+              </div>
+
+              {/* Hardware Binding / Unlinking section */}
+              <div className="pt-2 border-t border-slate-800">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">Vincular Dispositivo (Hardware Binding)</label>
+                {editDeviceId && editDeviceId !== 'null' ? (
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-xs text-amber-300">
+                      <span className="flex items-center gap-1 font-semibold"><Smartphone className="w-3.5 h-3.5" /> Dispositivo Registrado</span>
+                      <span className="font-mono text-[10px] opacity-80">{editDeviceId.substring(0, 14)}...</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditDeviceId(null)}
+                      className="w-full bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-500/40 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                    >
+                      🔓 Desvincular Dispositivo Ahora
+                    </button>
+                    <span className="text-[10px] text-amber-400/80 leading-tight">
+                      Al desvincular, el médico podrá ingresar y verificar su licencia en un nuevo teléfono o PC.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5 text-xs text-emerald-400 flex items-center gap-2 font-semibold">
+                    <span>✨ Licencia desvinculada (Lista para ser verificada en un nuevo dispositivo).</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2.5 pt-4">
@@ -722,20 +797,20 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
               <Trash2 className="w-6 h-6" />
             </div>
 
-            <h3 className="font-bold text-slate-200 text-base font-display mb-2">Eliminar Licencia</h3>
+            <h3 className="font-bold text-slate-100 text-lg font-display mb-1">¿SI ESTÁS SEGURO?</h3>
             
-            <p className="text-slate-400 text-xs font-sans leading-relaxed mb-6">
-              ¿Esta seguro de querer eliminar la licencia de <strong className="text-white font-semibold">{deleteConfirmDocName}</strong>?
+            <p className="text-slate-300 text-xs font-sans leading-relaxed mb-6">
+              Esta acción eliminará automáticamente y de forma permanente la licencia asignada a <strong className="text-rose-400 font-semibold">{deleteConfirmDocName}</strong>.
             </p>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 type="button"
                 onClick={() => {
                   setDeleteConfirmKey('');
                   setDeleteConfirmDocName('');
                 }}
-                className="flex-1 bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-300 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                className="flex-1 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
@@ -747,7 +822,17 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                   setDeleteConfirmKey('');
                   setDeleteConfirmDocName('');
 
-                  // Delete from cloud and update local list
+                  // 1. Immediately track as deleted and remove from local state synchronously
+                  const normK = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                  const targetNorm = normK(key);
+                  addDeletedLicenseKey(targetNorm);
+
+                  const updatedList = licensesList.filter(l => normK(l.key) !== targetNorm);
+                  setLicensesList(updatedList);
+                  saveLocalLicenses(updatedList);
+                  setSuccessMsg(`🗑️ Licencia de ${doctorName} eliminada automáticamente.`);
+
+                  // 2. Delete from cloud Firestore and Express backend in background
                   try {
                     await deleteCloudLicense(key);
                     fetch('/api/licenses/delete', {
@@ -758,15 +843,10 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
                   } catch (err) {
                     console.error('Error al eliminar en la nube:', err);
                   }
-
-                  const updatedList = licensesList.filter(l => l.key !== key);
-                  setLicensesList(updatedList);
-                  saveLocalLicenses(updatedList);
-                  setSuccessMsg(`Licencia de ${doctorName} eliminada correctamente de la nube.`);
                 }}
-                className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
+                className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer shadow-lg shadow-rose-500/20"
               >
-                Sí, Eliminar
+                Sí, Confirmar
               </button>
             </div>
           </div>

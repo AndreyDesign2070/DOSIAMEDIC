@@ -387,7 +387,7 @@ export default function DocumentsCertificationsModule({
             </div>
 
             {showSignaturePad && (
-              <div className="pt-2">
+              <div className="pt-2 touch-none overscroll-contain select-none">
                 <SignaturePad
                   onSave={(dataUrl) => {
                     setFingerSignatureDataUrl(dataUrl);

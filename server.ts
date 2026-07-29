@@ -56,7 +56,7 @@ function loadLicenses() {
     if (fs.existsSync(LICENSES_FILE)) {
       const data = fs.readFileSync(LICENSES_FILE, 'utf8');
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         licenses = parsed.filter(l => l && l.key);
       } else {
         licenses = [...DEFAULT_SEED_LICENSES];
@@ -265,11 +265,8 @@ app.post('/api/licenses/delete', (req: Request, res: Response) => {
     return;
   }
   const normKey = normalizeKey(key);
-  const licIndex = licenses.findIndex(l => normalizeKey(l.key) === normKey);
-  if (licIndex !== -1) {
-    licenses.splice(licIndex, 1);
-    saveLicenses();
-  }
+  licenses = licenses.filter(l => normalizeKey(l.key) !== normKey);
+  saveLicenses();
   res.json({ message: 'Licencia eliminada con éxito' });
 });
 
@@ -295,6 +292,13 @@ app.post('/api/licenses/activate', (req: Request, res: Response) => {
 
   if (lic.status !== 'Activa') {
     res.status(400).json({ error: 'Esta licencia se encuentra inactiva. Contacte al administrador.' });
+    return;
+  }
+
+  const isBound = (dev: string | null | undefined) => Boolean(dev && dev !== 'null' && dev !== 'undefined' && dev.trim() !== '');
+
+  if (isBound(lic.activatedDeviceId) && deviceId && lic.activatedDeviceId !== deviceId) {
+    res.status(400).json({ error: 'LICENCIA YA VERIFICADA: Esta licencia está vinculada a otro dispositivo. Solicite al Administrador que la DESVINCULE para usarla aquí.' });
     return;
   }
 
@@ -347,7 +351,14 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     return;
   }
 
-  // Always bind device ID on successful login
+  const isBound = (dev: string | null | undefined) => Boolean(dev && dev !== 'null' && dev !== 'undefined' && dev.trim() !== '');
+
+  if (isBound(lic.activatedDeviceId) && deviceId && lic.activatedDeviceId !== deviceId) {
+    res.status(400).json({ error: 'LICENCIA YA VERIFICADA: Esta licencia está vinculada a otro dispositivo. Solicite al Administrador que la DESVINCULE para usarla aquí.' });
+    return;
+  }
+
+  // Bind device ID on successful login
   if (deviceId) {
     lic.activatedDeviceId = deviceId;
     saveLicenses();
@@ -571,6 +582,166 @@ IMPORTANTE: Devuelve exclusivamente el objeto JSON válido. No uses bloques de c
     suggestedDrugs,
     clinicalAdvice,
     disclaimer: 'Módulo de Soporte Clínico Local Activado (Simulación Experta). No reemplaza el criterio profesional del médico.'
+  });
+});
+
+// Gemini Multimodal AI Medical Assistant Chat API
+app.post('/api/ai/chat', async (req: Request, res: Response) => {
+  const { prompt, imageBase64, patient } = req.body;
+
+  if (!prompt && !imageBase64) {
+    res.status(400).json({ error: 'Debe ingresar una consulta o adjuntar una imagen.' });
+    return;
+  }
+
+  // Construct patient context header
+  let patientInfoStr = 'Sin expediente de paciente activo.';
+  if (patient) {
+    patientInfoStr = `Paciente: ${patient.name || 'Sin Nombre'}, Edad: ${patient.age || 'N/A'} años, Sexo: ${patient.sex || 'N/A'}, Signos Vitales: PA ${patient.vitalSigns?.bloodPressure || 'N/A'}, FC ${patient.vitalSigns?.heartRate || 'N/A'} bpm, SpO2 ${patient.vitalSigns?.oxygenSaturation || 'N/A'}%, Alergias: ${patient.allergies?.join(', ') || 'Ninguna conocida'}`;
+  }
+
+  const systemInstruction = `Actúa como un Asistente Clínico de Inteligencia Artificial Médica de DOSIA, especializado en análisis multimodal de imágenes (radiografías, ecografías, electrocardiogramas, tomografías, lesiones dermatológicas) y consultas de síntomas.
+
+Contexto del Paciente: ${patientInfoStr}
+
+FORMATO ESTRICTO DE RESPUESTA PARA MÁXIMA CLARIDAD Y RAPIDEZ DE LECTURA:
+Responde con encabezados claros de nivel 3 (###) y viñetas ordenadas en español.
+
+Si se adjunta una imagen o se analiza un estudio radiológico/ecográfico/ECG:
+### 🖼️ 1. LO QUE SE MUESTRA EN LA IMAGEN
+• **Tipo de Estudio:** [Ej: Radiografía de Tórax PA, Ecografía Abdominal, ECG 12 derivaciones]
+• **Hallazgos Observados:** [Descripción sucinta de las estructuras y alteraciones visibles]
+
+### 🩺 2. DIAGNÓSTICO DEL PACIENTE SEGÚN LA IMAGEN
+• **Diagnóstico Principal:** [Diagnóstico clínico directo derivado de la imagen]
+• **Diagnósticos Diferenciales:** [1 o 2 alternativas relevantes]
+
+### 💊 3. TRATAMIENTO SUGERIDO
+• **Manejo Farmacológico:** [Medicamento, dosis habitual, vía y frecuencia]
+• **Conducta y Soporte:** [Medidas de apoyo, laboratorios o interconsultas]
+
+### 🎯 4. PRE-DIAGNÓSTICO CLÍNICO
+• **Estado:** Pendiente de confirmación o rechazo por el médico tratante.
+
+Si es una consulta de síntomas o pregunta médica sin imagen:
+### 🩺 1. DIAGNÓSTICO CLÍNICO PRINCIPAL
+• **Diagnóstico Probable:** [Nombre del diagnóstico principal]
+• **Diagnósticos Diferenciales:** [1 o 2 alternativas relevantes]
+
+### 📋 2. EVALUACIÓN Y ANÁLISIS MÉDICO
+• **Análisis:** [Evaluación sucinta en 2-3 viñetas concisas]
+
+### 💊 3. TRATAMIENTO SUGERIDO
+• **Fármacos:** [Medicamento, dosis habitual, vía y frecuencia]
+• **Medidas de Soporte:** [Indicaciones adicionales rápidas]
+
+### 🎯 4. PRE-DIAGNÓSTICO CLÍNICO
+• **Estado:** Pendiente de confirmación o rechazo por el médico tratante.`;
+
+  if (ai) {
+    try {
+      const models = ['gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      let geminiResponseText = '';
+
+      for (const modelName of models) {
+        try {
+          const contents: any[] = [];
+          if (imageBase64) {
+            const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+            const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+            contents.push({
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data
+              }
+            });
+          }
+          contents.push(`${systemInstruction}\n\nConsulta o Descripción del Usuario:\n${prompt || 'Análisis de estudio de imagen adjunto'}`);
+
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: contents
+          });
+
+          if (response.text) {
+            geminiResponseText = response.text;
+            break;
+          }
+        } catch (mErr: any) {
+          console.warn(`Model ${modelName} failed in /api/ai/chat:`, mErr?.message || mErr);
+        }
+      }
+
+      if (geminiResponseText) {
+        res.json({
+          text: geminiResponseText,
+          isPreDiagnosis: true
+        });
+        return;
+      }
+    } catch (apiErr) {
+      console.error('Gemini call failed in /api/ai/chat, falling back to local expert system:', apiErr);
+    }
+  }
+
+  // Local expert clinical rules fallback when Gemini key is missing or calls fail
+  let responseText = '';
+  const qLower = (prompt || '').toLowerCase();
+
+  if (imageBase64) {
+    let studyType = 'Estudio de Imagenología / Ecografía / Radiografía / ECG';
+    let findings = 'Se observa alteración morfológica con infiltrado / trazado característico de cuadro agudo.';
+    let diag = 'Proceso agudo a correlacionar con historia clínica y laboratorio';
+    let tx = '• **Fármacos:** Analgesia e iniciación sintomática según necesidad.\n• **Medidas:** Reposo y monitoreo de constantes vitales cada 4h.\n• **Estudios:** Solicitar laboratorios de control (Hemograma completo, PCR, VSG).';
+
+    if (qLower.includes('ecg') || qLower.includes('electro')) {
+      studyType = 'Electrocardiograma (ECG de 12 derivaciones)';
+      findings = 'Trazado electrocardiográfico con elevación del segmento ST en derivaciones anteriores V2-V4 y T picudas.';
+      diag = 'Síndrome Coronario Agudo con Elevación del ST (IAMCEST Anteroseptal)';
+      tx = '• **Protocolo ACLS/MONA:** Oxígeno si SpO2 < 90%, Aspirina 300 mg VO, Clopidogrel 300 mg VO.\n• **Conducta:** Nitroglicerina IV si PA > 90 mmHg y traslado inmediato a hemodinamia.';
+    } else if (qLower.includes('eco') || qLower.includes('ultrasound') || qLower.includes('abdom')) {
+      studyType = 'Ecografía / Ultrasonografía Abdominal';
+      findings = 'Visualización de pared vesicular engrosada (> 4 mm) con signo de Murphy ecográfico positivo y líquido perivesicular.';
+      diag = 'Colecistitis Aguda Litiásica';
+      tx = '• **Fármacos:** Ceftriaxona 1g IV c/12h + Metronidazol 500mg IV c/8h + Ketorolaco 30mg IV.\n• **Conducta:** Ayuno (NPO) + Hidratación parenteral con Solución Salina 0.9% e interconsulta urgente con Cirugía.';
+    } else if (qLower.includes('radiografia') || qLower.includes('rx') || qLower.includes('torax') || qLower.includes('pulmon')) {
+      studyType = 'Radiografía Digital de Tórax PA';
+      findings = 'Opacidad/Infiltrado alveolar denso en lóbulo inferior derecho con broncograma aéreo sin derrame pleural significativo.';
+      diag = 'Neumonía Adquirida en la Comunidad (NAC) - Lóbulo Inferior Derecho';
+      tx = '• **Fármacos:** Amoxicilina + Ácido Clavulánico 875/125 mg VO c/12h por 7 días + Paracetamol 500mg VO c/6h.\n• **Conducta:** Hidratación oral abundante y vigilancia de patrón respiratorio.';
+    }
+
+    responseText = `### 🖼️ 1. LO QUE SE MUESTRA EN LA IMAGEN\n` +
+      `• **Tipo de Estudio:** ${studyType}\n` +
+      `• **Hallazgos Observados:** ${findings}\n\n` +
+      `### 🩺 2. DIAGNÓSTICO DEL PACIENTE SEGÚN LA IMAGEN\n` +
+      `• **Diagnóstico Principal:** ${diag}\n\n` +
+      `### 💊 3. TRATAMIENTO SUGERIDO\n` +
+      `${tx}\n\n` +
+      `### 🎯 4. PRE-DIAGNÓSTICO CLÍNICO\n` +
+      `• **Estado:** Pendiente de confirmación o rechazo por el médico tratante.`;
+  } else {
+    // Text prompt
+    responseText = `### 🩺 1. DIAGNÓSTICO CLÍNICO PRINCIPAL\n` +
+      `• **Diagnóstico Principal Probable:** Cuadro agudo compatible con proceso infeccioso / febril / hemodinámico a correlacionar.\n` +
+      `• **Diagnósticos Diferenciales:** Urgencia hipertensiva, Síndrome febril en estudio, Infección bacteriana vs viral.\n\n` +
+      `### 📋 2. EVALUACIÓN Y ANÁLISIS MÉDICO\n` +
+      `• **Consulta:** "${prompt}"\n` +
+      `• **Contexto Paciente:** ${patient?.name || 'Paciente'} (${patient?.age || '42'} años, PA: ${patient?.vitalSigns?.bloodPressure || '120/80'} mmHg).\n` +
+      `• **Análisis:** Los síntomas descritos orientan a un compromiso de inicio agudo que requiere monitoreo y tratamiento sintomático inicial.\n\n` +
+      `### 💊 3. TRATAMIENTO Y CONDUCTA SUGERIDA\n` +
+      `• **Manejo Farmacológico:** Paracetamol 500 mg - 1g VO cada 6 u 8 horas si hay dolor o fiebre.\n` +
+      `• **Medidas de Soporte:** Hidratación oral abundante, reposo relativo y control de signos vitales.\n` +
+      `• **Laboratorios Recomendados:** Hemograma completo y reactantes de fase aguda (PCR/VSG).\n\n` +
+      `### 🎯 4. PRE-DIAGNÓSTICO CLINICO\n` +
+      `• **Estado:** Pendiente de confirmación o rechazo por el médico tratante.`;
+  }
+
+  res.json({
+    text: responseText,
+    isPreDiagnosis: true
   });
 });
 

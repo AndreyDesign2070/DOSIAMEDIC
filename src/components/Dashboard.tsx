@@ -16,6 +16,11 @@ import GlobalSearchModal from './GlobalSearchModal';
 import PatientsListModal from './PatientsListModal';
 import DosiaLogo from './DosiaLogo';
 import DosiaAppIcon from './DosiaAppIcon';
+import { 
+  subscribeCloudPatients, 
+  saveCloudPatient, 
+  deleteCloudPatient 
+} from '../lib/firebase';
 import {
   User, Activity, Calculator, Pill, FileText, Clock, Bot, HeartPulse,
   Image as ImageIcon, BarChart3, Search, Plus, LogOut, ShieldCheck,
@@ -32,8 +37,8 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ doctor, onLogout }: DashboardProps) {
-  // Global Patients & Active Patient State (Starts empty on login as requested)
-  const [patients, setPatients] = useState<Patient[]>(INITIAL_PATIENTS);
+  // Global Patients & Active Patient State (Starts empty with 0 patients for a new license)
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [activePatientId, setActivePatientId] = useState<string>('');
   const [medications, setMedications] = useState<Medication[]>(INITIAL_MEDICATIONS);
   const [protocols, setProtocols] = useState<EmergencyProtocol[]>(INITIAL_PROTOCOLS);
@@ -54,6 +59,9 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     | 'imaging'
     | 'analytics'
   >('patient_profile');
+
+  // Navigation Group Dropdowns state ('g1' | 'g2' | 'g3' | null)
+  const [openGroup, setOpenGroup] = useState<'g1' | 'g2' | 'g3' | null>(null);
 
   // Global Search Modal state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -93,24 +101,58 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
   // Get current active patient object (returns null if activePatientId is '')
   const activePatient = patients.find(p => p.id === activePatientId) || null;
 
-  // Load persistence from localStorage
+  // Real-time synchronization of patients with Cloud Firestore across all devices with same license
   useEffect(() => {
+    const normKey = (doctor?.licenseKey || '').trim().toUpperCase();
+    const storageKey = `dosia_patients_${normKey}`;
+
+    // 1. Try local cache first for instant render
     try {
-      const storedP = localStorage.getItem('dosia_patients');
+      const storedP = localStorage.getItem(storageKey);
       if (storedP) {
         const parsed = JSON.parse(storedP);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setPatients(parsed);
+          if (parsed.length > 0) {
+            setActivePatientId(prev => (prev && parsed.some(p => p.id === prev) ? prev : parsed[0].id));
+          } else {
+            setActivePatientId('');
+          }
         }
+      } else {
+        // First time entering on a new license -> 0 patients
+        setPatients([]);
+        setActivePatientId('');
       }
     } catch (e) {
-      console.error(e);
+      console.error('Error reading local patients cache:', e);
+      setPatients([]);
+      setActivePatientId('');
     }
-  }, []);
+
+    // 2. Subscribe to real-time Cloud Firestore updates for doctor.licenseKey
+    const unsubscribe = subscribeCloudPatients(doctor.licenseKey, (cloudPatients) => {
+      const list = cloudPatients || [];
+      setPatients(list);
+      if (normKey) {
+        localStorage.setItem(storageKey, JSON.stringify(list));
+      }
+      if (list.length > 0) {
+        setActivePatientId(prev => (prev && list.some(p => p.id === prev) ? prev : list[0].id));
+      } else {
+        setActivePatientId('');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [doctor?.licenseKey]);
 
   const savePatientsToStorage = (updatedList: Patient[]) => {
     setPatients(updatedList);
-    localStorage.setItem('dosia_patients', JSON.stringify(updatedList));
+    const normKey = (doctor?.licenseKey || '').trim().toUpperCase();
+    if (normKey) {
+      localStorage.setItem(`dosia_patients_${normKey}`, JSON.stringify(updatedList));
+    }
   };
 
   const resetNewPatientForm = () => {
@@ -204,6 +246,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
     const updated = [newP, ...patients];
     savePatientsToStorage(updated);
+    saveCloudPatient(newP, doctor.licenseKey);
     setActivePatientId(newP.id);
     setShowNewPatientModal(false);
     resetNewPatientForm();
@@ -213,11 +256,13 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
   const handleUpdatePatient = (updated: Patient) => {
     const list = patients.map(p => p.id === updated.id ? updated : p);
     savePatientsToStorage(list);
+    saveCloudPatient(updated, doctor.licenseKey);
   };
 
   const handleDeletePatient = (patientId: string) => {
     const updated = patients.filter(p => p.id !== patientId);
     savePatientsToStorage(updated);
+    deleteCloudPatient(patientId);
     if (activePatientId === patientId) {
       setActivePatientId(updated.length > 0 ? updated[0].id : '');
     }
@@ -360,44 +405,253 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
         )}
       </div>
 
-      {/* 4. PRIMARY NAVIGATION TABS NAVBAR */}
-      <div className="bg-brand-navy-light/40 border-b border-slate-800 px-4 sm:px-6 py-2 overflow-x-auto flex gap-1.5 scrollbar-none sticky top-[49px] z-20 backdrop-blur-md">
-        {[
-          { id: 'patient_profile', label: 'Perfil del Paciente', icon: User },
-          { id: 'clinical_consultation', label: 'Consulta Clínica', icon: FileText },
-          { id: 'auto_evaluation', label: 'Evaluación Automática', icon: Activity },
-          { id: 'prescription', label: 'Prescripción & Vademécum', icon: Pill },
-          { id: 'documents', label: 'Documentos & Certificados', icon: ShieldCheck },
-          { id: 'emr_timeline', label: 'Historial Clínico (Timeline)', icon: Clock },
-          { id: 'ai_medical', label: 'IA Médica', icon: Bot },
-          { id: 'emergency_mode', label: '⚡ Modo Emergencia', icon: HeartPulse, isCritical: true },
-          { id: 'medical_scales', label: '🧮 Escalas Médicas', icon: Calculator },
-          { id: 'imaging', label: '🖼️ Imagenología', icon: ImageIcon },
-          { id: 'analytics', label: '📊 Estadísticas', icon: BarChart3 }
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+      {/* 4. PRIMARY NAVIGATION TABS NAVBAR (GROUPED DROPDOWNS AS REQUESTED) */}
+      <div className="bg-brand-navy-light/60 border-b border-slate-800 px-4 sm:px-6 py-2 flex flex-wrap items-center gap-2 sticky top-[49px] z-20 backdrop-blur-md">
+        
+        {/* GRUPO 1: Perfil del paciente, Consulta Clínica, Evaluación Automática */}
+        {(() => {
+          const g1Items = [
+            { id: 'patient_profile', label: 'Perfil del Paciente', icon: User },
+            { id: 'clinical_consultation', label: 'Consulta Clínica', icon: FileText },
+            { id: 'auto_evaluation', label: 'Evaluación Automática', icon: Activity }
+          ];
+          const isG1Active = g1Items.some(item => item.id === activeTab);
+          const activeItem = g1Items.find(item => item.id === activeTab);
 
           return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-                isActive
-                  ? tab.isCritical
-                    ? 'bg-rose-500 text-slate-900 shadow-lg shadow-rose-500/20'
-                    : 'bg-brand-teal text-slate-900 shadow-lg shadow-brand-teal/20'
-                  : tab.isCritical
-                  ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800/80'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
+            <div className="relative inline-block text-left">
+              <button
+                type="button"
+                onClick={() => setOpenGroup(openGroup === 'g1' ? null : 'g1')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                  isG1Active
+                    ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
+                    : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
+                }`}
+              >
+                <User className="w-4 h-4 shrink-0" />
+                <div className="flex flex-col text-left leading-tight">
+                  <span className="text-[9px] uppercase tracking-wider font-extrabold opacity-80">GRUPO 1</span>
+                  <span className="text-xs truncate max-w-[140px] sm:max-w-[180px]">
+                    {activeItem ? activeItem.label : 'Consulta & Evaluación'}
+                  </span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform shrink-0 ${openGroup === 'g1' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openGroup === 'g1' && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setOpenGroup(null)} />
+                  <div className="absolute left-0 mt-2 w-56 rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
+                    <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-900/50">
+                      GRUPO 1 — Paciente & Consulta
+                    </div>
+                    {g1Items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveTab(item.id as any);
+                            setOpenGroup(null);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            isActive
+                              ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
+                              : 'text-slate-200 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 text-brand-teal" />
+                            <span>{item.label}</span>
+                          </div>
+                          {isActive && <Check className="w-4 h-4 text-brand-teal" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           );
-        })}
+        })()}
+
+        {/* GRUPO 2: Prescripción & Vademécum, Documentos & Certificados */}
+        {(() => {
+          const g2Items = [
+            { id: 'prescription', label: 'Prescripción & Vademécum', icon: Pill },
+            { id: 'documents', label: 'Documentos & Certificados', icon: ShieldCheck }
+          ];
+          const isG2Active = g2Items.some(item => item.id === activeTab);
+          const activeItem = g2Items.find(item => item.id === activeTab);
+
+          return (
+            <div className="relative inline-block text-left">
+              <button
+                type="button"
+                onClick={() => setOpenGroup(openGroup === 'g2' ? null : 'g2')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                  isG2Active
+                    ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
+                    : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
+                }`}
+              >
+                <Pill className="w-4 h-4 shrink-0" />
+                <div className="flex flex-col text-left leading-tight">
+                  <span className="text-[9px] uppercase tracking-wider font-extrabold opacity-80">GRUPO 2</span>
+                  <span className="text-xs truncate max-w-[140px] sm:max-w-[180px]">
+                    {activeItem ? activeItem.label : 'Prescripción & Documentos'}
+                  </span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform shrink-0 ${openGroup === 'g2' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openGroup === 'g2' && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setOpenGroup(null)} />
+                  <div className="absolute left-0 mt-2 w-60 rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
+                    <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-900/50">
+                      GRUPO 2 — Prescripción & Docs
+                    </div>
+                    {g2Items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveTab(item.id as any);
+                            setOpenGroup(null);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            isActive
+                              ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
+                              : 'text-slate-200 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 text-brand-teal" />
+                            <span>{item.label}</span>
+                          </div>
+                          {isActive && <Check className="w-4 h-4 text-brand-teal" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* GRUPO 3: Historial Clínico, Escalas Médicas, Estadísticas (+ Imagenología) */}
+        {(() => {
+          const g3Items = [
+            { id: 'emr_timeline', label: 'Historial Clínico (Timeline)', icon: Clock },
+            { id: 'medical_scales', label: 'Escalas Médicas', icon: Calculator },
+            { id: 'analytics', label: 'Estadísticas', icon: BarChart3 },
+            { id: 'imaging', label: 'Imagenología', icon: ImageIcon }
+          ];
+          const isG3Active = g3Items.some(item => item.id === activeTab);
+          const activeItem = g3Items.find(item => item.id === activeTab);
+
+          return (
+            <div className="relative inline-block text-left">
+              <button
+                type="button"
+                onClick={() => setOpenGroup(openGroup === 'g3' ? null : 'g3')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                  isG3Active
+                    ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
+                    : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
+                }`}
+              >
+                <Clock className="w-4 h-4 shrink-0" />
+                <div className="flex flex-col text-left leading-tight">
+                  <span className="text-[9px] uppercase tracking-wider font-extrabold opacity-80">GRUPO 3</span>
+                  <span className="text-xs truncate max-w-[140px] sm:max-w-[180px]">
+                    {activeItem ? activeItem.label : 'Historial & Escalas'}
+                  </span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform shrink-0 ${openGroup === 'g3' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openGroup === 'g3' && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setOpenGroup(null)} />
+                  <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
+                    <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-900/50">
+                      GRUPO 3 — Historial & Diagnóstico
+                    </div>
+                    {g3Items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveTab(item.id as any);
+                            setOpenGroup(null);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            isActive
+                              ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
+                              : 'text-slate-200 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 text-brand-teal" />
+                            <span>{item.label}</span>
+                          </div>
+                          {isActive && <Check className="w-4 h-4 text-brand-teal" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* SUELTO 1: IA Médica */}
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('ai_medical');
+            setOpenGroup(null);
+          }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer border ${
+            activeTab === 'ai_medical'
+              ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
+              : 'bg-slate-900/80 text-cyan-300 hover:text-white hover:bg-slate-800 border-cyan-500/30'
+          }`}
+        >
+          <Bot className="w-4 h-4 text-cyan-400" />
+          <span>IA Médica</span>
+        </button>
+
+        {/* SUELTO 2: Modo Emergencia */}
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('emergency_mode');
+            setOpenGroup(null);
+          }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer border ${
+            activeTab === 'emergency_mode'
+              ? 'bg-rose-500 text-slate-900 border-rose-500 shadow-lg shadow-rose-500/20 font-extrabold'
+              : 'bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border-rose-500/30'
+          }`}
+        >
+          <HeartPulse className="w-4 h-4 text-rose-400" />
+          <span>⚡ Modo Emergencia</span>
+        </button>
+
       </div>
 
       {/* 5. MAIN BODY RENDERER FOR ACTIVE TAB */}
@@ -455,6 +709,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
             <DocumentsCertificationsModule
               patient={activePatient}
               documents={documents}
+              doctorName={doctor.name}
               onCreateDocument={(newDoc) => setDocuments([newDoc, ...documents])}
             />
           </div>

@@ -7,7 +7,7 @@ import DosiaAppIcon from './components/DosiaAppIcon';
 import CreateIconModal from './components/CreateIconModal';
 import { License } from './types';
 import { INITIAL_LICENSES } from './data';
-import { fetchCloudLicenses, saveCloudLicense } from './lib/firebase';
+import { fetchCloudLicenses, saveCloudLicense, isDeviceBound } from './lib/firebase';
 
 export default function App() {
   // Device & Activation state - Initialize synchronously to prevent empty device ID on first load
@@ -36,6 +36,8 @@ export default function App() {
   const [licenseInput, setLicenseInput] = useState('');
   const [licenseError, setLicenseError] = useState('');
   const [licenseSuccess, setLicenseSuccess] = useState('');
+  const [isSubmittingLicense, setIsSubmittingLicense] = useState(false);
+  const [isSubmittingLogin, setIsSubmittingLogin] = useState(false);
 
   // Admin login inputs
   const [isAdminMode, setIsAdminMode] = useState(false);
@@ -62,6 +64,13 @@ export default function App() {
 
   // 1. Initialize Device ID simulation and session restoration
   useEffect(() => {
+    // Explicitly reset all inputs so they are ALWAYS completely empty when opening the app
+    setLicenseInput('');
+    setUsernameInput('');
+    setPasswordInput('');
+    setAdminUser('');
+    setAdminPass('');
+
     // Check if license is already bound in this app container
     const activatedLicenseKey = localStorage.getItem('dosia_activated_license_key');
     if (activatedLicenseKey) {
@@ -84,6 +93,15 @@ export default function App() {
     }
   }, []);
 
+  // Ensure inputs are reset whenever view changes
+  useEffect(() => {
+    setLicenseInput('');
+    setUsernameInput('');
+    setPasswordInput('');
+    setAdminUser('');
+    setAdminPass('');
+  }, [currentView]);
+
   // Simulator helper: Change device ID to test licensing lockout
   const handleSimulateNewPhone = () => {
     const randomId = `IMEI-${Math.floor(100000 + Math.random() * 900000)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
@@ -103,104 +121,180 @@ export default function App() {
   // 2. Handle License Activation
   const handleActivateLicense = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingLicense) return;
     setLicenseError('');
     setLicenseSuccess('');
-
-    // Normalize key: remove spaces, smart dashes (\u2010-\u2015, \u2212), and convert to uppercase
-    const keyToActivate = (licenseInput || '')
-      .replace(/[\u2010-\u2015\u2212]/g, '-')
-      .replace(/\s+/g, '')
-      .toUpperCase();
-
-    if (!keyToActivate) {
-      setLicenseError('Escriba su clave de licencia.');
-      return;
-    }
-
-    // Ensure valid deviceId
-    let activeDeviceId = deviceId;
-    if (!activeDeviceId) {
-      activeDeviceId = `IMEI-${Math.floor(100000 + Math.random() * 900000)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      localStorage.setItem('dosia_simulated_device_id', activeDeviceId);
-      setDeviceId(activeDeviceId);
-    }
-
-    // First, check Cloud Firestore for licenses across all devices
-    const normKey = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const cloudLicenses = await fetchCloudLicenses();
-    const cloudLic = cloudLicenses.find((l: License) => normKey(l?.key) === normKey(keyToActivate));
-
-    if (cloudLic) {
-      if (cloudLic.status !== 'Activa') {
-        setLicenseError('Esta licencia se encuentra inactiva. Contacte al administrador.');
-        return;
-      }
-      cloudLic.activatedDeviceId = activeDeviceId;
-      await saveCloudLicense(cloudLic);
-
-      localStorage.setItem('dosia_activated_license_key', cloudLic.key);
-      setLicenseSuccess('¡Licencia verificada y vinculada exitosamente!');
-      setLicenseActivated(true);
-
-      setTimeout(() => {
-        setCurrentView('login');
-      }, 1200);
-      return;
-    }
+    setIsSubmittingLicense(true);
 
     try {
-      const res = await fetch('/api/licenses/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key: keyToActivate,
-          deviceId: activeDeviceId
-        })
-      });
+      // Normalize key: remove spaces, smart dashes (\u2010-\u2015, \u2212), and convert to uppercase
+      const rawInput = (licenseInput || '').trim();
+      const keyToActivate = rawInput
+        .replace(/[\u2010-\u2015\u2212]/g, '-')
+        .replace(/\s+/g, '')
+        .toUpperCase();
 
-      let data: any = {};
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await res.json();
-      }
-
-      if (res.ok && data.success) {
-        setLicenseSuccess(data.message || '¡Licencia activada con éxito!');
-        localStorage.setItem('dosia_activated_license_key', keyToActivate);
-        setLicenseActivated(true);
-        setTimeout(() => {
-          setCurrentView('login');
-        }, 1200);
+      if (!keyToActivate) {
+        setLicenseError('Escriba su clave de licencia o número de cédula.');
         return;
       }
 
-      setLicenseError(data.error || 'La clave de licencia ingresada no es válida o no existe.');
-    } catch (err: any) {
-      setLicenseError('La clave de licencia ingresada no es válida o no existe.');
+      // Ensure valid deviceId
+      let activeDeviceId = deviceId;
+      if (!activeDeviceId) {
+        activeDeviceId = `IMEI-${Math.floor(100000 + Math.random() * 900000)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        localStorage.setItem('dosia_simulated_device_id', activeDeviceId);
+        setDeviceId(activeDeviceId);
+      }
+
+      const norm = (k: string) => (k || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      const cleanSearch = norm(keyToActivate);
+
+      let allLicenses: License[] = [];
+      try {
+        const cloudLics = await fetchCloudLicenses();
+        if (Array.isArray(cloudLics)) allLicenses = [...cloudLics];
+      } catch (e) {
+        console.warn('Error al consultar licencias en nube:', e);
+      }
+
+      // Merge with local licenses and default seed licenses if not in cloud list
+      const localStr = localStorage.getItem('dosia_local_licenses');
+      if (localStr) {
+        try {
+          const localLics: License[] = JSON.parse(localStr);
+          for (const loc of localLics) {
+            if (!allLicenses.some(l => norm(l.key) === norm(loc.key))) {
+              allLicenses.push(loc);
+            }
+          }
+        } catch (e) {}
+      }
+      for (const def of DEFAULT_SEED_LICENSES) {
+        if (!allLicenses.some(l => norm(l.key) === norm(def.key))) {
+          allLicenses.push(def);
+        }
+      }
+
+      const cloudLic = allLicenses.find((l: License) => 
+        norm(l?.key) === cleanSearch || norm(l?.username) === cleanSearch
+      );
+
+      if (cloudLic) {
+        if (cloudLic.status !== 'Activa') {
+          setLicenseError('Esta licencia se encuentra inactiva. Contacte al administrador.');
+          return;
+        }
+        if (isDeviceBound(cloudLic.activatedDeviceId) && cloudLic.activatedDeviceId !== activeDeviceId) {
+          setLicenseError('LICENCIA YA VERIFICADA: Esta licencia está vinculada a otro dispositivo. Solicite al Administrador que la DESVINCULE para usarla aquí.');
+          return;
+        }
+
+        cloudLic.activatedDeviceId = activeDeviceId;
+        saveCloudLicense(cloudLic).catch(err => console.error('Error al guardar licencia en nube:', err));
+
+        localStorage.setItem('dosia_activated_license_key', cloudLic.key);
+        setLicenseSuccess('¡Licencia verificada y vinculada exitosamente!');
+        setLicenseActivated(true);
+
+        setTimeout(() => {
+          setCurrentView('login');
+        }, 800);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/licenses/activate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: keyToActivate,
+            deviceId: activeDeviceId
+          })
+        });
+
+        let data: any = {};
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await res.json();
+        }
+
+        if (res.ok && data.success) {
+          setLicenseSuccess(data.message || '¡Licencia activada con éxito!');
+          localStorage.setItem('dosia_activated_license_key', keyToActivate);
+          setLicenseActivated(true);
+          setTimeout(() => {
+            setCurrentView('login');
+          }, 800);
+          return;
+        }
+
+        setLicenseError(data.error || 'La clave de licencia ingresada no es válida o no existe.');
+      } catch (err: any) {
+        setLicenseError('La clave de licencia ingresada no es válida o no existe.');
+      }
+    } finally {
+      setIsSubmittingLicense(false);
     }
   };
 
   // 3. Handle Doctor Login
   const handleDoctorLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingLogin) return;
     setLoginError('');
+    setIsSubmittingLogin(true);
 
-    if (!usernameInput.trim() || !passwordInput.trim()) {
-      setLoginError('Complete todos los campos.');
-      return;
-    }
-
-    const uInput = usernameInput.trim();
-    const pInput = passwordInput.trim();
-    const normUser = (u: string) => (u || '').trim().toLowerCase();
-
-    // Check Cloud Firestore first for real-time credentials across all devices
     try {
-      const cloudLicenses = await fetchCloudLicenses();
-      const cloudLic = cloudLicenses.find((l: License) => normUser(l?.username) === normUser(uInput));
+      if (!usernameInput.trim() || !passwordInput.trim()) {
+        setLoginError('Complete todos los campos.');
+        return;
+      }
+
+      const uInput = usernameInput.trim();
+      const pInput = passwordInput.trim();
+      const norm = (u: string) => (u || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      const cleanSearch = norm(uInput);
+
+      let activeDeviceId = deviceId;
+      if (!activeDeviceId) {
+        activeDeviceId = `IMEI-${Math.floor(100000 + Math.random() * 900000)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        localStorage.setItem('dosia_simulated_device_id', activeDeviceId);
+        setDeviceId(activeDeviceId);
+      }
+
+      let allLicenses: License[] = [];
+      try {
+        const cloudLics = await fetchCloudLicenses();
+        if (Array.isArray(cloudLics)) allLicenses = [...cloudLics];
+      } catch (e) {
+        console.warn('Error al consultar credenciales en la nube:', e);
+      }
+
+      const localStr = localStorage.getItem('dosia_local_licenses');
+      if (localStr) {
+        try {
+          const localLics: License[] = JSON.parse(localStr);
+          for (const loc of localLics) {
+            if (!allLicenses.some(l => norm(l.key) === norm(loc.key))) {
+              allLicenses.push(loc);
+            }
+          }
+        } catch (e) {}
+      }
+      for (const def of DEFAULT_SEED_LICENSES) {
+        if (!allLicenses.some(l => norm(l.key) === norm(def.key))) {
+          allLicenses.push(def);
+        }
+      }
+
+      const cloudLic = allLicenses.find((l: License) => 
+        norm(l?.username) === cleanSearch || norm(l?.key) === cleanSearch
+      );
 
       if (cloudLic) {
-        if ((cloudLic?.password || '').trim() !== pInput) {
+        // Compare passwords case-insensitively for mobile convenience
+        if ((cloudLic?.password || '').trim().toLowerCase() !== pInput.toLowerCase()) {
           setLoginError('Contraseña incorrecta.');
           return;
         }
@@ -210,8 +304,13 @@ export default function App() {
           return;
         }
 
-        cloudLic.activatedDeviceId = deviceId;
-        await saveCloudLicense(cloudLic);
+        if (isDeviceBound(cloudLic.activatedDeviceId) && cloudLic.activatedDeviceId !== activeDeviceId) {
+          setLoginError('LICENCIA YA VERIFICADA: Esta licencia está vinculada a otro dispositivo. Solicite al Administrador que la DESVINCULE para usarla aquí.');
+          return;
+        }
+
+        cloudLic.activatedDeviceId = activeDeviceId;
+        saveCloudLicense(cloudLic).catch(err => console.error('Error al guardar sesión en nube:', err));
 
         const doctorData = {
           name: cloudLic.doctorName,
@@ -229,45 +328,45 @@ export default function App() {
         setLoginError('');
         return;
       }
-    } catch (e) {
-      console.warn('Error al verificar credenciales en la nube:', e);
-    }
 
-    // Try backend API server as secondary fallback
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: uInput,
-          password: pInput,
-          deviceId
-        })
-      });
+      // Try backend API server as fallback
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: uInput,
+            password: pInput,
+            deviceId: activeDeviceId
+          })
+        });
 
-      let data: any = {};
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await res.json();
-      }
-
-      if (res.ok && data.success) {
-        localStorage.setItem('dosia_active_doctor', JSON.stringify(data.doctor));
-        if (data.doctor?.licenseKey) {
-          localStorage.setItem('dosia_activated_license_key', data.doctor.licenseKey);
+        let data: any = {};
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await res.json();
         }
-        setLicenseActivated(true);
-        setActiveDoctor(data.doctor);
-        setCurrentView('dashboard');
-        setUsernameInput('');
-        setPasswordInput('');
-        setLoginError('');
-        return;
-      }
 
-      setLoginError(data.error || 'Usuario o contraseña incorrectos.');
-    } catch (err) {
-      setLoginError('Usuario o contraseña incorrectos.');
+        if (res.ok && data.success) {
+          localStorage.setItem('dosia_active_doctor', JSON.stringify(data.doctor));
+          if (data.doctor?.licenseKey) {
+            localStorage.setItem('dosia_activated_license_key', data.doctor.licenseKey);
+          }
+          setLicenseActivated(true);
+          setActiveDoctor(data.doctor);
+          setCurrentView('dashboard');
+          setUsernameInput('');
+          setPasswordInput('');
+          setLoginError('');
+          return;
+        }
+
+        setLoginError(data.error || 'Usuario o contraseña incorrectos.');
+      } catch (err) {
+        setLoginError('Usuario o contraseña incorrectos.');
+      }
+    } finally {
+      setIsSubmittingLogin(false);
     }
   };
 
@@ -299,6 +398,17 @@ export default function App() {
     setCurrentView('login');
   };
 
+  const handleHeaderCreateIconClick = async () => {
+    setShowInstallModal(true);
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+      } catch (err) {
+        console.error('Error al invocar instalador:', err);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-brand-dark flex flex-col justify-between text-white font-sans selection:bg-brand-teal selection:text-slate-900">
       
@@ -310,7 +420,7 @@ export default function App() {
         </div>
         <div className="flex gap-3 items-center">
           <button
-            onClick={() => setShowInstallModal(true)}
+            onClick={handleHeaderCreateIconClick}
             className="bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-400/50 px-2.5 py-1 rounded-md font-bold transition-all flex items-center gap-1.5 text-[10px] shadow-sm shadow-cyan-500/10 active:scale-95 cursor-pointer"
             title="Crear icono en la pantalla principal del celular"
           >
@@ -363,7 +473,7 @@ export default function App() {
             {currentView === 'license' ? (
               
               /* SCREEN A: LICENSE ACTIVATION FORM (FIRST TIME INSTALLED FLOW) */
-              <form onSubmit={handleActivateLicense} className="space-y-4">
+              <form onSubmit={handleActivateLicense} className="space-y-4" autoComplete="off">
                 
                 <div className="text-center mb-6">
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-teal/10 text-brand-teal border border-brand-teal/20 text-[10px] font-bold">
@@ -391,10 +501,13 @@ export default function App() {
                   <div className="relative">
                     <input
                       type="text"
+                      name="dosia_license_key_field_empty"
+                      id="dosia_license_key_field_empty"
                       value={licenseInput}
                       onChange={(e) => setLicenseInput(e.target.value)}
                       placeholder="Ej. MED-8XQ2-4P7K-Z91A o su Cédula"
                       autoCapitalize="characters"
+                      autoComplete="off"
                       autoCorrect="off"
                       spellCheck={false}
                       className="bg-brand-navy-light border border-slate-700 focus:border-brand-teal focus:outline-none rounded-xl pl-11 pr-4 py-3.5 text-sm w-full font-mono text-brand-teal-pastel tracking-wider placeholder:tracking-normal"
@@ -408,9 +521,20 @@ export default function App() {
 
                 <button
                   type="submit"
-                  className="w-full bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-brand-teal/20 transition-all text-xs flex items-center justify-center gap-2 mt-4 cursor-pointer"
+                  disabled={isSubmittingLicense}
+                  className="w-full bg-brand-teal hover:bg-brand-teal-pastel disabled:opacity-50 text-slate-900 font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-brand-teal/20 transition-all text-xs flex items-center justify-center gap-2 mt-4 cursor-pointer"
                 >
-                  <ShieldCheck className="w-4 h-4" /> Verificar y Vincular Celular
+                  {isSubmittingLicense ? (
+                    <>
+                      <Sparkles className="w-4 h-4 animate-spin" />
+                      <span>Verificando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Verificar y Vincular Celular</span>
+                    </>
+                  )}
                 </button>
 
                 <div className="text-center pt-2">
@@ -431,7 +555,7 @@ export default function App() {
             ) : (
 
               /* SCREEN B: LOGIN FORM (IF LICENSE IS ACTIVATED ON TELEPHONE) */
-              <form onSubmit={handleDoctorLogin} className="space-y-4">
+              <form onSubmit={handleDoctorLogin} className="space-y-4" autoComplete="off">
                 
                 <div className="text-center mb-4">
                   <span className="text-xs text-brand-teal font-semibold">Ingreso Profesional Médico</span>
@@ -448,6 +572,8 @@ export default function App() {
                   <div className="relative">
                     <input
                       type={showUsername ? 'text' : 'password'}
+                      name="dosia_username_field_empty"
+                      id="dosia_username_field_empty"
                       value={usernameInput}
                       onChange={(e) => setUsernameInput(e.target.value)}
                       placeholder="ingrese su usuario"
@@ -473,6 +599,8 @@ export default function App() {
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="dosia_password_field_empty"
+                      id="dosia_password_field_empty"
                       value={passwordInput}
                       onChange={(e) => setPasswordInput(e.target.value)}
                       placeholder="ingrese su contraseña"
@@ -481,7 +609,7 @@ export default function App() {
                       spellCheck={false}
                       className="bg-brand-navy-light border border-slate-700 rounded-xl pl-4 pr-11 py-3 text-sm w-full text-white focus:outline-none focus:border-brand-teal font-mono"
                       required
-                      autoComplete="off"
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
@@ -498,9 +626,20 @@ export default function App() {
 
                 <button
                   type="submit"
-                  className="w-full bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-brand-teal/20 transition-all text-xs flex items-center justify-center gap-1 mt-4 cursor-pointer"
+                  disabled={isSubmittingLogin}
+                  className="w-full bg-brand-teal hover:bg-brand-teal-pastel disabled:opacity-50 text-slate-900 font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-brand-teal/20 transition-all text-xs flex items-center justify-center gap-2 mt-4 cursor-pointer"
                 >
-                  Iniciar Sesión
+                  {isSubmittingLogin ? (
+                    <>
+                      <Sparkles className="w-4 h-4 animate-spin" />
+                      <span>Iniciando Sesión...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Iniciar Sesión</span>
+                    </>
+                  )}
                 </button>
 
                 <div className="text-center pt-2">
@@ -538,7 +677,7 @@ export default function App() {
               <h3 className="font-bold text-slate-200 text-sm mt-3 font-display">Ingreso Suite Administrador</h3>
             </div>
 
-            <form onSubmit={handleAdminLogin} className="space-y-4 relative">
+            <form onSubmit={handleAdminLogin} className="space-y-4 relative" autoComplete="off">
               {adminError && (
                 <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl">
                   {adminError}
@@ -550,12 +689,16 @@ export default function App() {
                 <div className="relative">
                   <input
                     type={showAdminUser ? 'text' : 'password'}
+                    name="dosia_admin_user_field_empty"
+                    id="dosia_admin_user_field_empty"
                     value={adminUser}
                     onChange={(e) => setAdminUser(e.target.value)}
                     placeholder="ingrese su usuario"
                     className="bg-brand-navy-light border border-slate-700 rounded-xl pl-4 pr-11 py-3 text-sm w-full text-white focus:outline-none focus:border-brand-teal font-mono"
                     required
                     autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                   />
                   <button
                     type="button"
@@ -572,12 +715,16 @@ export default function App() {
                 <div className="relative">
                   <input
                     type={showAdminPass ? 'text' : 'password'}
+                    name="dosia_admin_pass_field_empty"
+                    id="dosia_admin_pass_field_empty"
                     value={adminPass}
                     onChange={(e) => setAdminPass(e.target.value)}
                     placeholder="ingrese su contraseña"
                     className="bg-brand-navy-light border border-slate-700 rounded-xl pl-4 pr-11 py-3 text-sm w-full text-white focus:outline-none focus:border-brand-teal font-mono"
                     required
-                    autoComplete="off"
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    spellCheck={false}
                   />
                   <button
                     type="button"

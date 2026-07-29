@@ -29,6 +29,16 @@ export default function SignaturePad({ onSave, initialValue }: SignaturePadProps
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
+    // Prevent touch scrolling on mobile while drawing
+    const preventScroll = (e: TouchEvent) => {
+      if (e.target === canvas) {
+        e.preventDefault();
+      }
+    };
+
+    canvas.addEventListener('touchstart', preventScroll, { passive: false });
+    canvas.addEventListener('touchmove', preventScroll, { passive: false });
+
     // If initial value exists, load it
     if (initialValue) {
       const img = new Image();
@@ -38,6 +48,11 @@ export default function SignaturePad({ onSave, initialValue }: SignaturePadProps
       };
       img.src = initialValue;
     }
+
+    return () => {
+      canvas.removeEventListener('touchstart', preventScroll);
+      canvas.removeEventListener('touchmove', preventScroll);
+    };
   }, [initialValue]);
 
   const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -143,7 +158,8 @@ export default function SignaturePad({ onSave, initialValue }: SignaturePadProps
           onTouchStart={startDrawing}
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
-          className="w-full h-full block"
+          className="w-full h-full block touch-none select-none"
+          style={{ touchAction: 'none' }}
         />
         {!hasSigned && (
           <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center text-slate-400 text-xs gap-1 select-none">

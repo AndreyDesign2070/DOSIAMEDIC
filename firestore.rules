@@ -4,5 +4,9 @@ service cloud.firestore {
     match /licenses/{licenseId} {
       allow read, write: if true;
     }
+    match /patients/{patientId} {
+      allow read, write: if true;
+    }
   }
 }
+

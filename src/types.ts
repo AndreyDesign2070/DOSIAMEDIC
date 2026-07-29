@@ -14,7 +14,7 @@ export interface License {
 }
 
 export type BloodGroup = 'O+' | 'A+' | 'B+' | 'AB+' | 'O-' | 'A-' | 'B-' | 'AB-';
-export type PatientStatus = 'Activo' | 'Hospitalizado' | 'Alta';
+export type PatientStatus = 'Activo' | 'Hospitalizado' | 'Alta' | 'Estable';
 
 export interface PatientAlerts {
   allergies: string[];
@@ -159,7 +159,7 @@ export interface Medication {
   stability?: string;
   ivCompatibility?: string;
   approxCost?: string;
-  availability?: 'Disponible' | 'Escaso' | 'Uso Hospitalario';
+  availability?: 'Disponible' | 'Escaso' | 'Uso Hospitalario' | string;
 }
 
 export type DocumentType = 

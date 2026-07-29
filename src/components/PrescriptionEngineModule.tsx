@@ -40,12 +40,33 @@ export default function PrescriptionEngineModule({
   const [calcConcentrationMg, setCalcConcentrationMg] = useState(120);
   const [calcConcentrationMl, setCalcConcentrationMl] = useState(5);
 
-  const filteredMeds = medicationsList.filter(
-    m =>
+  // Category Quick Filter
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+
+  const filteredMeds = medicationsList.filter(m => {
+    const matchesSearch =
       (m?.name || '').toLowerCase().includes((searchDrug || '').toLowerCase()) ||
       (m?.activeIngredient || '').toLowerCase().includes((searchDrug || '').toLowerCase()) ||
-      (m?.category || '').toLowerCase().includes((searchDrug || '').toLowerCase())
-  );
+      (m?.category || '').toLowerCase().includes((searchDrug || '').toLowerCase()) ||
+      (m?.brandName || '').toLowerCase().includes((searchDrug || '').toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (selectedCategoryFilter === 'psicotropicos') {
+      return (m?.category || '').toLowerCase().includes('psicotrópico') || (m?.category || '').toLowerCase().includes('psicotropico') || ['clonazepam', 'alprazolam', 'quetiapina', 'sertralina', 'haloperidol', 'diazepam'].some(k => (m?.name || '').toLowerCase().includes(k) || (m?.activeIngredient || '').toLowerCase().includes(k));
+    }
+    if (selectedCategoryFilter === 'vasoactivos') {
+      return (m?.category || '').toLowerCase().includes('vasoactivo') || (m?.category || '').toLowerCase().includes('inotrópico') || (m?.category || '').toLowerCase().includes('inotropico') || ['noradrenalina', 'adrenalina', 'dopamina', 'dobutamina', 'vasopresina', 'milrinona'].some(k => (m?.name || '').toLowerCase().includes(k) || (m?.activeIngredient || '').toLowerCase().includes(k));
+    }
+    if (selectedCategoryFilter === 'antihipertensivos_iv') {
+      return (m?.category || '').toLowerCase().includes('antihipertensivo') || ['labetalol', 'nicardipino', 'nicardipina', 'nitroprusiato', 'nitroglicerina', 'hidralazina', 'esmolol'].some(k => (m?.name || '').toLowerCase().includes(k) || (m?.activeIngredient || '').toLowerCase().includes(k));
+    }
+    if (selectedCategoryFilter === 'antiarritmicos') {
+      return (m?.category || '').toLowerCase().includes('antiarreítmico') || (m?.category || '').toLowerCase().includes('antiarritmico') || ['amiodarona', 'adenosina', 'lidocaína', 'lidocaina', 'propafenona', 'verapamilo'].some(k => (m?.name || '').toLowerCase().includes(k) || (m?.activeIngredient || '').toLowerCase().includes(k));
+    }
+
+    return true;
+  });
 
   // INTERACTION CHECKER FOR SELECTED MEDS IN PRESCRIPTION LIST
   const getInteractions = () => {
@@ -243,6 +264,65 @@ export default function PrescriptionEngineModule({
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-teal"
               />
               <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+            </div>
+
+            {/* Quick Categories Bar */}
+            <div className="flex flex-wrap gap-1 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryFilter('all')}
+                className={`px-2 py-1 rounded-lg border font-medium transition-all ${
+                  selectedCategoryFilter === 'all'
+                    ? 'bg-brand-teal text-slate-900 font-bold border-brand-teal'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryFilter('psicotropicos')}
+                className={`px-2 py-1 rounded-lg border font-medium transition-all ${
+                  selectedCategoryFilter === 'psicotropicos'
+                    ? 'bg-purple-500 text-white font-bold border-purple-400'
+                    : 'bg-slate-900 border-slate-800 text-purple-300 hover:border-purple-500'
+                }`}
+              >
+                🧠 Psicotrópicos
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryFilter('vasoactivos')}
+                className={`px-2 py-1 rounded-lg border font-medium transition-all ${
+                  selectedCategoryFilter === 'vasoactivos'
+                    ? 'bg-amber-500 text-slate-900 font-bold border-amber-400'
+                    : 'bg-slate-900 border-slate-800 text-amber-300 hover:border-amber-500'
+                }`}
+              >
+                ⚡ Vasoactivos / Inotrópicos
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryFilter('antihipertensivos_iv')}
+                className={`px-2 py-1 rounded-lg border font-medium transition-all ${
+                  selectedCategoryFilter === 'antihipertensivos_iv'
+                    ? 'bg-rose-500 text-white font-bold border-rose-400'
+                    : 'bg-slate-900 border-slate-800 text-rose-300 hover:border-rose-500'
+                }`}
+              >
+                💉 Antihipertensivos IV
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryFilter('antiarritmicos')}
+                className={`px-2 py-1 rounded-lg border font-medium transition-all ${
+                  selectedCategoryFilter === 'antiarritmicos'
+                    ? 'bg-cyan-500 text-slate-900 font-bold border-cyan-400'
+                    : 'bg-slate-900 border-slate-800 text-cyan-300 hover:border-cyan-500'
+                }`}
+              >
+                ❤️ Antiarrítmicos
+              </button>
             </div>
 
             <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
@@ -456,6 +536,65 @@ export default function PrescriptionEngineModule({
               className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-teal"
             />
             <Search className="w-5 h-5 text-slate-500 absolute left-3 top-3.5" />
+          </div>
+
+          {/* Quick Categories Bar Vademecum */}
+          <div className="flex flex-wrap gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setSelectedCategoryFilter('all')}
+              className={`px-3 py-1.5 rounded-xl border font-medium transition-all ${
+                selectedCategoryFilter === 'all'
+                  ? 'bg-brand-teal text-slate-900 font-bold border-brand-teal shadow'
+                  : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+              }`}
+            >
+              Todos ({medicationsList.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedCategoryFilter('psicotropicos')}
+              className={`px-3 py-1.5 rounded-xl border font-medium transition-all ${
+                selectedCategoryFilter === 'psicotropicos'
+                  ? 'bg-purple-500 text-white font-bold border-purple-400 shadow'
+                  : 'bg-slate-900 border-slate-800 text-purple-300 hover:border-purple-500'
+              }`}
+            >
+              🧠 Psicotrópicos
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedCategoryFilter('vasoactivos')}
+              className={`px-3 py-1.5 rounded-xl border font-medium transition-all ${
+                selectedCategoryFilter === 'vasoactivos'
+                  ? 'bg-amber-500 text-slate-900 font-bold border-amber-400 shadow'
+                  : 'bg-slate-900 border-slate-800 text-amber-300 hover:border-amber-500'
+              }`}
+            >
+              ⚡ Vasoactivos / Inotrópicos
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedCategoryFilter('antihipertensivos_iv')}
+              className={`px-3 py-1.5 rounded-xl border font-medium transition-all ${
+                selectedCategoryFilter === 'antihipertensivos_iv'
+                  ? 'bg-rose-500 text-white font-bold border-rose-400 shadow'
+                  : 'bg-slate-900 border-slate-800 text-rose-300 hover:border-rose-500'
+              }`}
+            >
+              💉 Antihipertensivos IV
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedCategoryFilter('antiarritmicos')}
+              className={`px-3 py-1.5 rounded-xl border font-medium transition-all ${
+                selectedCategoryFilter === 'antiarritmicos'
+                  ? 'bg-cyan-500 text-slate-900 font-bold border-cyan-400 shadow'
+                  : 'bg-slate-900 border-slate-800 text-cyan-300 hover:border-cyan-500'
+              }`}
+            >
+              ❤️ Antiarrítmicos
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -19,6 +19,26 @@
         "secondHalfPaymentStatus": { "type": "string" }
       },
       "required": ["key", "doctorName", "username", "password"]
+    },
+    "patients": {
+      "title": "Patients",
+      "description": "Clinical patient records for DOSIA application",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "cardId": { "type": "string" },
+        "hcNumber": { "type": "string" },
+        "patientCategory": { "type": "string" },
+        "age": { "type": "number" },
+        "weight": { "type": "number" },
+        "height": { "type": "number" },
+        "sex": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "status": { "type": "string" },
+        "licenseKey": { "type": "string" }
+      },
+      "required": ["id", "name"]
     }
   }
 }

@@ -30,7 +30,12 @@ export default function CreateIconModal({
     // Detect if already installed as standalone PWA
     const isStandaloneApp = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     setIsStandalone(isStandaloneApp);
-  }, []);
+
+    // Automatically launch install prompt when modal opens if prompt is available
+    if (isOpen && deferredPrompt) {
+      handleInstallClick();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
