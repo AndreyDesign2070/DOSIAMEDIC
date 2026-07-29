@@ -194,12 +194,9 @@ export default function App() {
         saveCloudLicense(cloudLic).catch(err => console.error('Error al guardar licencia en nube:', err));
 
         localStorage.setItem('dosia_activated_license_key', cloudLic.key);
-        setLicenseSuccess('¡Licencia verificada y vinculada exitosamente!');
+        setLicenseSuccess('');
         setLicenseActivated(true);
-
-        setTimeout(() => {
-          setCurrentView('login');
-        }, 800);
+        setCurrentView('login');
         return;
       }
 
@@ -220,12 +217,10 @@ export default function App() {
         }
 
         if (res.ok && data.success) {
-          setLicenseSuccess(data.message || '¡Licencia activada con éxito!');
           localStorage.setItem('dosia_activated_license_key', keyToActivate);
+          setLicenseSuccess('');
           setLicenseActivated(true);
-          setTimeout(() => {
-            setCurrentView('login');
-          }, 800);
+          setCurrentView('login');
           return;
         }
 

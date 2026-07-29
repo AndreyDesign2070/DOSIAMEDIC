@@ -597,46 +597,43 @@ app.post('/api/ai/chat', async (req: Request, res: Response) => {
   // Construct patient context header
   let patientInfoStr = 'Sin expediente de paciente activo.';
   if (patient) {
-    patientInfoStr = `Paciente: ${patient.name || 'Sin Nombre'}, Edad: ${patient.age || 'N/A'} años, Sexo: ${patient.sex || 'N/A'}, Signos Vitales: PA ${patient.vitalSigns?.bloodPressure || 'N/A'}, FC ${patient.vitalSigns?.heartRate || 'N/A'} bpm, SpO2 ${patient.vitalSigns?.oxygenSaturation || 'N/A'}%, Alergias: ${patient.allergies?.join(', ') || 'Ninguna conocida'}`;
+    patientInfoStr = `Paciente: ${patient.name || 'Sin Nombre'}, Edad: ${patient.age || 'N/A'} años, Sexo: ${patient.sex === 'M' ? 'Masculino' : patient.sex === 'F' ? 'Femenino' : patient.sex || 'N/A'}, Signos Vitales: PA ${patient.vitalSigns?.bloodPressure || 'N/A'}, FC ${patient.vitalSigns?.heartRate || 'N/A'} bpm, SpO2 ${patient.vitalSigns?.oxygenSaturation || 'N/A'}%, Temp ${patient.vitalSigns?.temperature || 'N/A'}°C, Alergias: ${patient.allergies?.join(', ') || 'Ninguna conocida'}`;
   }
 
-  const systemInstruction = `Actúa como un Asistente Clínico de Inteligencia Artificial Médica de DOSIA, especializado en análisis multimodal de imágenes (radiografías, ecografías, electrocardiogramas, tomografías, lesiones dermatológicas) y consultas de síntomas.
+  const systemInstruction = `Eres el Asistente Clínico de Inteligencia Artificial Médica de DOSIA.
+Tu objetivo es analizar imágenes médicas (Radiografías, Ecografías, ECG, TAC, Dermatología, Laboratorios) y consultas de síntomas de forma ULTRA-RÁPIDA, CONCISA Y ALTAMENTE ESTRUCTURADA para el médico tratante.
 
-Contexto del Paciente: ${patientInfoStr}
+Contexto del Paciente Actual: ${patientInfoStr}
 
-FORMATO ESTRICTO DE RESPUESTA PARA MÁXIMA CLARIDAD Y RAPIDEZ DE LECTURA:
-Responde con encabezados claros de nivel 3 (###) y viñetas ordenadas en español.
+INSTRUCCIONES DE FORMATO PARA ANÁLISIS DE IMAGEN (OBLIGATORIAS, CONCISAS Y DIRECTAS):
+Cuando el usuario adjunte una imagen médica, debes estructurar la respuesta EXACTAMENTE en estos 3 bloques claros para lectura express:
 
-Si se adjunta una imagen o se analiza un estudio radiológico/ecográfico/ECG:
 ### 🖼️ 1. LO QUE SE MUESTRA EN LA IMAGEN
-• **Tipo de Estudio:** [Ej: Radiografía de Tórax PA, Ecografía Abdominal, ECG 12 derivaciones]
-• **Hallazgos Observados:** [Descripción sucinta de las estructuras y alteraciones visibles]
+- **Tipo de Estudio:** [Nombre del estudio: Radiografía, Ecografía, ECG, etc.]
+- **Hallazgos Visuales:** [Descripción breve de las imágenes o lesiones observadas]
 
 ### 🩺 2. DIAGNÓSTICO DEL PACIENTE SEGÚN LA IMAGEN
-• **Diagnóstico Principal:** [Diagnóstico clínico directo derivado de la imagen]
-• **Diagnósticos Diferenciales:** [1 o 2 alternativas relevantes]
+- **Diagnóstico Principal:** [Diagnóstico médico claro y directo]
+- **Diagnósticos Diferenciales:** [1 o 2 opciones alternativas si aplican]
 
 ### 💊 3. TRATAMIENTO SUGERIDO
-• **Manejo Farmacológico:** [Medicamento, dosis habitual, vía y frecuencia]
-• **Conducta y Soporte:** [Medidas de apoyo, laboratorios o interconsultas]
+- **Tratamiento Farmacológico:** [Medicamento, dosis, vía de administración y frecuencia]
+- **Medidas de Soporte y Conducta:** [Acción recomendada, laboratorios o interconsulta]
 
-### 🎯 4. PRE-DIAGNÓSTICO CLÍNICO
-• **Estado:** Pendiente de confirmación o rechazo por el médico tratante.
+---
 
-Si es una consulta de síntomas o pregunta médica sin imagen:
-### 🩺 1. DIAGNÓSTICO CLÍNICO PRINCIPAL
-• **Diagnóstico Probable:** [Nombre del diagnóstico principal]
-• **Diagnósticos Diferenciales:** [1 o 2 alternativas relevantes]
+INSTRUCCIONES DE FORMATO PARA CONSULTAS DE SÍNTOMAS / PREGUNTAS MÉDICAS:
 
-### 📋 2. EVALUACIÓN Y ANÁLISIS MÉDICO
-• **Análisis:** [Evaluación sucinta en 2-3 viñetas concisas]
+### 🩺 1. DIAGNÓSTICO CLÍNICO COMPLETO
+- **Diagnóstico Principal Probable:** [Nombre del diagnóstico]
+- **Diagnósticos Diferenciales:** [1 o 2 alternativas relevantes]
 
-### 💊 3. TRATAMIENTO SUGERIDO
-• **Fármacos:** [Medicamento, dosis habitual, vía y frecuencia]
-• **Medidas de Soporte:** [Indicaciones adicionales rápidas]
+### 📋 2. EVALUACIÓN DE SÍNTOMAS
+- **Resumen Clínico:** [Explicación concisa]
 
-### 🎯 4. PRE-DIAGNÓSTICO CLÍNICO
-• **Estado:** Pendiente de confirmación o rechazo por el médico tratante.`;
+### 💊 3. TRATAMIENTO Y PRESCRIPCIÓN SUGERIDA
+- **Farmacológico:** [Medicamento, dosis, vía y frecuencia]
+- **Medidas No Farmacológicas:** [Indicaciones adicionales]`;
 
   if (ai) {
     try {
@@ -658,7 +655,7 @@ Si es una consulta de síntomas o pregunta médica sin imagen:
               }
             });
           }
-          contents.push(`${systemInstruction}\n\nConsulta o Descripción del Usuario:\n${prompt || 'Análisis de estudio de imagen adjunto'}`);
+          contents.push(`${systemInstruction}\n\nConsulta o Síntomas Ingresados por el Usuario:\n${prompt || 'Análisis del estudio de imagen adjunto'}`);
 
           const response = await ai.models.generateContent({
             model: modelName,
@@ -692,51 +689,57 @@ Si es una consulta de síntomas o pregunta médica sin imagen:
 
   if (imageBase64) {
     let studyType = 'Estudio de Imagenología / Ecografía / Radiografía / ECG';
-    let findings = 'Se observa alteración morfológica con infiltrado / trazado característico de cuadro agudo.';
+    let findings = 'Se observa alteración morfológica con infiltrado o trazado característico de cuadro agudo.';
     let diag = 'Proceso agudo a correlacionar con historia clínica y laboratorio';
-    let tx = '• **Fármacos:** Analgesia e iniciación sintomática según necesidad.\n• **Medidas:** Reposo y monitoreo de constantes vitales cada 4h.\n• **Estudios:** Solicitar laboratorios de control (Hemograma completo, PCR, VSG).';
+    let tx = '- **Paracetamol / Analgesia:** 500mg - 1g VO cada 8 horas si hay dolor o malestar.\n- **Medidas:** Reposo relativo e hidratación parenteral o VO.\n- **Estudios:** Solicitar laboratorios de control (Hemograma completo, PCR, VSG).';
 
     if (qLower.includes('ecg') || qLower.includes('electro')) {
       studyType = 'Electrocardiograma (ECG de 12 derivaciones)';
       findings = 'Trazado electrocardiográfico con elevación del segmento ST en derivaciones anteriores V2-V4 y T picudas.';
       diag = 'Síndrome Coronario Agudo con Elevación del ST (IAMCEST Anteroseptal)';
-      tx = '• **Protocolo ACLS/MONA:** Oxígeno si SpO2 < 90%, Aspirina 300 mg VO, Clopidogrel 300 mg VO.\n• **Conducta:** Nitroglicerina IV si PA > 90 mmHg y traslado inmediato a hemodinamia.';
+      tx = '- **Aspirina:** 300 mg VO masticados de inmediato.\n- **Clopidogrel:** Dosis de carga de 300 mg VO.\n- **Nitroglicerina Sublingual:** 0.4 mg si PA es estable (> 90 mmHg).\n- **Conducta:** Traslado urgente a sala de Hemodinamia para angioplastia primaria.';
     } else if (qLower.includes('eco') || qLower.includes('ultrasound') || qLower.includes('abdom')) {
-      studyType = 'Ecografía / Ultrasonografía Abdominal';
+      studyType = 'Ecografía Abdominal en Escala de Grises';
       findings = 'Visualización de pared vesicular engrosada (> 4 mm) con signo de Murphy ecográfico positivo y líquido perivesicular.';
-      diag = 'Colecistitis Aguda Litiásica';
-      tx = '• **Fármacos:** Ceftriaxona 1g IV c/12h + Metronidazol 500mg IV c/8h + Ketorolaco 30mg IV.\n• **Conducta:** Ayuno (NPO) + Hidratación parenteral con Solución Salina 0.9% e interconsulta urgente con Cirugía.';
+      diag = 'Colecistitis Aguda Litiásica (CIE-10: K80.0)';
+      tx = '- **Ceftriaxona:** 1g IV c/12h por 5-7 días.\n- **Metronidazol:** 500mg IV c/8h.\n- **Ketorolaco:** 30mg IV c/8h en rescate de dolor agudo.\n- **Conducta:** Ayuno (NPO) + Hidratación parenteral e interconsulta urgente con Cirugía General.';
     } else if (qLower.includes('radiografia') || qLower.includes('rx') || qLower.includes('torax') || qLower.includes('pulmon')) {
       studyType = 'Radiografía Digital de Tórax PA';
-      findings = 'Opacidad/Infiltrado alveolar denso en lóbulo inferior derecho con broncograma aéreo sin derrame pleural significativo.';
-      diag = 'Neumonía Adquirida en la Comunidad (NAC) - Lóbulo Inferior Derecho';
-      tx = '• **Fármacos:** Amoxicilina + Ácido Clavulánico 875/125 mg VO c/12h por 7 días + Paracetamol 500mg VO c/6h.\n• **Conducta:** Hidratación oral abundante y vigilancia de patrón respiratorio.';
+      findings = 'Opacidad y condensación alveolar densa en lóbulo inferior derecho con broncograma aéreo evidente.';
+      diag = 'Neumonía Adquirida en la Comunidad (NAC) - Lóbulo Inferior Derecho (CIE-10: J18.9)';
+      tx = '- **Amoxicilina + Ácido Clavulánico:** 875/125 mg VO cada 12 horas por 7 días.\n- **Paracetamol:** 500 mg VO cada 6 horas según fiebre o malestar.\n- **Conducta:** Hidratación oral abundante, fisioterapia respiratoria y control oximétrico.';
     }
 
     responseText = `### 🖼️ 1. LO QUE SE MUESTRA EN LA IMAGEN\n` +
-      `• **Tipo de Estudio:** ${studyType}\n` +
-      `• **Hallazgos Observados:** ${findings}\n\n` +
+      `- **Tipo de Estudio:** ${studyType}\n` +
+      `- **Hallazgos Visuales:** ${findings}\n\n` +
       `### 🩺 2. DIAGNÓSTICO DEL PACIENTE SEGÚN LA IMAGEN\n` +
-      `• **Diagnóstico Principal:** ${diag}\n\n` +
+      `- **Diagnóstico Principal:** ${diag}\n` +
+      `- **Diagnósticos Diferenciales:** Proceso agudo vs. evento inflamatorio/infeccioso localizado.\n\n` +
       `### 💊 3. TRATAMIENTO SUGERIDO\n` +
-      `${tx}\n\n` +
-      `### 🎯 4. PRE-DIAGNÓSTICO CLÍNICO\n` +
-      `• **Estado:** Pendiente de confirmación o rechazo por el médico tratante.`;
+      `${tx}`;
   } else {
     // Text prompt
-    responseText = `### 🩺 1. DIAGNÓSTICO CLÍNICO PRINCIPAL\n` +
-      `• **Diagnóstico Principal Probable:** Cuadro agudo compatible con proceso infeccioso / febril / hemodinámico a correlacionar.\n` +
-      `• **Diagnósticos Diferenciales:** Urgencia hipertensiva, Síndrome febril en estudio, Infección bacteriana vs viral.\n\n` +
-      `### 📋 2. EVALUACIÓN Y ANÁLISIS MÉDICO\n` +
-      `• **Consulta:** "${prompt}"\n` +
-      `• **Contexto Paciente:** ${patient?.name || 'Paciente'} (${patient?.age || '42'} años, PA: ${patient?.vitalSigns?.bloodPressure || '120/80'} mmHg).\n` +
-      `• **Análisis:** Los síntomas descritos orientan a un compromiso de inicio agudo que requiere monitoreo y tratamiento sintomático inicial.\n\n` +
-      `### 💊 3. TRATAMIENTO Y CONDUCTA SUGERIDA\n` +
-      `• **Manejo Farmacológico:** Paracetamol 500 mg - 1g VO cada 6 u 8 horas si hay dolor o fiebre.\n` +
-      `• **Medidas de Soporte:** Hidratación oral abundante, reposo relativo y control de signos vitales.\n` +
-      `• **Laboratorios Recomendados:** Hemograma completo y reactantes de fase aguda (PCR/VSG).\n\n` +
-      `### 🎯 4. PRE-DIAGNÓSTICO CLINICO\n` +
-      `• **Estado:** Pendiente de confirmación o rechazo por el médico tratante.`;
+    responseText = `### 🩺 1. DIAGNÓSTICO CLÍNICO COMPLETO\n` +
+      `- **Diagnóstico Principal Probable:** Cuadro agudo compatible con sintomatología ingresada (evaluación sistémica).\n` +
+      `- **Código CIE-10 Sugerido:** R69 (Causas desconocidas e no especificadas de morbilidad).\n` +
+      `- **Diagnósticos Diferenciales:**\n` +
+      `  1. Proceso infeccioso / febril de origen a determinar.\n` +
+      `  2. Reacción inflamatoria o respuesta hemodinámica aguda.\n\n` +
+      `### 📋 2. EVALUACIÓN Y ANÁLISIS DE SÍNTOMAS\n` +
+      `- **Consulta del Médico:** "${prompt}"\n` +
+      `- **Datos del Paciente:** ${patient?.name || 'Paciente en evaluación'} (${patient?.age || 'Adulto'} años, PA: ${patient?.vitalSigns?.bloodPressure || '120/80'} mmHg).\n` +
+      `- **Análisis Clínico:** Los síntomas manifestados sugieren un episodio agudo. Se recomienda iniciar manejo sintomático mientras se completan estudios complementarios.\n\n` +
+      `### 💊 3. PLAN DE TRATAMIENTO Y PRESCRIPCIÓN SUGERIDA\n` +
+      `- **Tratamiento Farmacológico:**\n` +
+      `  - **Paracetamol:** 500 mg - 1g VO cada 6 a 8 horas (dosis máxima 4g/día) en caso de dolor o fiebre.\n` +
+      `  - **Hidratación Oral:** Solución de rehidratación o suero oral a libre demanda.\n` +
+      `- **Medidas No Farmacológicas:** Reposo relativo, ambiente tranquilo y control térmico por medios físicos.\n\n` +
+      `### 🔬 4. PRUEBAS Y ESTUDIOS COMPLEMENTARIOS\n` +
+      `- **Laboratorios:** Hemograma completo, PCR cuantificada, electrolitos séricos.\n` +
+      `- **Gabinete:** Radiografía o ecografía de control según localización del síntoma principal.\n\n` +
+      `### 🚨 5. SIGNOS DE ALARMA Y SEGUIMIENTO\n` +
+      `- Monitorear temperatura > 38.5°C persistente, dificultad respiratoria o alteración del estado de conciencia.`;
   }
 
   res.json({
