@@ -25,7 +25,8 @@ export default function SignaturePad({ onSave, onCancel, initialValue, isModal =
 
     const preventWindowScroll = (e: TouchEvent) => {
       const canvas = canvasRef.current;
-      if (canvas && (e.target === canvas || (e.target as HTMLElement)?.closest('#signature-modal-overlay'))) {
+      // Only prevent default scrolling when touching directly on the signature canvas
+      if (canvas && (e.target === canvas || canvas.contains(e.target as Node))) {
         if (e.cancelable) {
           e.preventDefault();
         }
@@ -33,7 +34,6 @@ export default function SignaturePad({ onSave, onCancel, initialValue, isModal =
     };
 
     window.addEventListener('touchmove', preventWindowScroll, { passive: false });
-    window.addEventListener('touchstart', preventWindowScroll, { passive: false });
 
     const canvas = canvasRef.current;
     if (canvas) {
@@ -67,7 +67,6 @@ export default function SignaturePad({ onSave, onCancel, initialValue, isModal =
         document.body.style.touchAction = prevTouchAction;
       }
       window.removeEventListener('touchmove', preventWindowScroll);
-      window.removeEventListener('touchstart', preventWindowScroll);
     };
   }, [initialValue, isModal]);
 
@@ -108,6 +107,7 @@ export default function SignaturePad({ onSave, onCancel, initialValue, isModal =
     ctx.beginPath();
     ctx.moveTo(coords.x, coords.y);
     setIsDrawing(true);
+    setHasSigned(true);
   };
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -229,10 +229,9 @@ export default function SignaturePad({ onSave, onCancel, initialValue, isModal =
   return (
     <div
       id="signature-modal-overlay"
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md overflow-hidden touch-none select-none animate-fade-in"
-      onTouchMove={(e) => { if (e.cancelable) e.preventDefault(); }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md overflow-y-auto animate-fade-in"
     >
-      <div className="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-2xl w-full flex flex-col shadow-2xl text-slate-100 overflow-hidden relative animate-scale-up">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-2xl w-full flex flex-col shadow-2xl text-slate-100 overflow-hidden relative animate-scale-up my-auto">
         
         {/* Header Bar */}
         <div className="bg-gradient-to-r from-slate-900 via-brand-navy to-slate-900 border-b border-slate-800 p-4 sm:p-5 flex items-center justify-between gap-3">

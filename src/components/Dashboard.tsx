@@ -361,18 +361,18 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
       <ClinicalAlertsBar patient={activePatient} onUpdateAlerts={handleUpdateAlerts} />
 
       {/* 3. PATIENT SELECTOR STRIP DIRECTLY ABOVE / NEAR THE TABS (Prompt Request #7) */}
-      <div className="bg-slate-900/90 border-b border-slate-800 px-4 sm:px-6 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">
-            Paciente Activo:
+      <div className="bg-slate-900/90 border-b border-slate-800 px-3 sm:px-6 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0 max-w-full">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono shrink-0">
+            Paciente:
           </span>
           {/* Dropdown Selector */}
-          <div className="flex items-center gap-2 bg-brand-navy-light border border-slate-700 rounded-xl px-3 py-1.5 shadow-inner">
+          <div className="flex items-center gap-2 bg-brand-navy-light border border-slate-700 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-inner min-w-0 max-w-full overflow-hidden">
             <User className="w-4 h-4 text-brand-teal shrink-0" />
             <select
               value={activePatientId}
               onChange={(e) => setActivePatientId(e.target.value)}
-              className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer py-0.5"
+              className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer py-0.5 truncate max-w-[200px] xs:max-w-[260px] sm:max-w-md"
             >
               <option value="" className="bg-slate-900 text-slate-400">-- Ningún paciente seleccionado --</option>
               {patients.map(p => (
@@ -402,7 +402,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
       </div>
 
       {/* 4. PRIMARY NAVIGATION TABS NAVBAR (GROUPED DROPDOWNS AS REQUESTED) */}
-      <div className="bg-brand-navy-light/60 border-b border-slate-800 px-4 sm:px-6 py-2 flex flex-wrap items-center gap-2 sticky top-[49px] z-20 backdrop-blur-md">
+      <div className="bg-brand-navy-light/60 border-b border-slate-800 px-3 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto max-w-full sm:flex-wrap sticky top-[49px] z-20 backdrop-blur-md">
         
         {/* GRUPO 1: Perfil del paciente, Consulta Clínica, Evaluación Automática */}
         {(() => {
@@ -415,11 +415,11 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
           const activeItem = g1Items.find(item => item.id === activeTab);
 
           return (
-            <div className="relative inline-block text-left">
+            <div className="relative inline-block text-left shrink-0">
               <button
                 type="button"
                 onClick={() => setOpenGroup(openGroup === 'g1' ? null : 'g1')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
                   isG1Active
                     ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
                     : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
@@ -428,7 +428,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                 <User className="w-4 h-4 shrink-0" />
                 <div className="flex flex-col text-left leading-tight">
                   <span className="text-[9px] uppercase tracking-wider font-extrabold opacity-80">GRUPO 1</span>
-                  <span className="text-xs truncate max-w-[140px] sm:max-w-[180px]">
+                  <span className="text-xs truncate max-w-[110px] sm:max-w-[180px]">
                     {activeItem ? activeItem.label : 'Consulta & Evaluación'}
                   </span>
                 </div>
@@ -438,7 +438,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
               {openGroup === 'g1' && (
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setOpenGroup(null)} />
-                  <div className="absolute left-0 mt-2 w-56 rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
+                  <div className="absolute left-0 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
                     <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-900/50">
                       GRUPO 1 — Paciente & Consulta
                     </div>
@@ -484,11 +484,11 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
           const activeItem = g2Items.find(item => item.id === activeTab);
 
           return (
-            <div className="relative inline-block text-left">
+            <div className="relative inline-block text-left shrink-0">
               <button
                 type="button"
                 onClick={() => setOpenGroup(openGroup === 'g2' ? null : 'g2')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
                   isG2Active
                     ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
                     : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
@@ -497,7 +497,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                 <Pill className="w-4 h-4 shrink-0" />
                 <div className="flex flex-col text-left leading-tight">
                   <span className="text-[9px] uppercase tracking-wider font-extrabold opacity-80">GRUPO 2</span>
-                  <span className="text-xs truncate max-w-[140px] sm:max-w-[180px]">
+                  <span className="text-xs truncate max-w-[110px] sm:max-w-[180px]">
                     {activeItem ? activeItem.label : 'Prescripción & Documentos'}
                   </span>
                 </div>
@@ -507,7 +507,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
               {openGroup === 'g2' && (
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setOpenGroup(null)} />
-                  <div className="absolute left-0 mt-2 w-60 rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
+                  <div className="absolute left-0 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
                     <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-900/50">
                       GRUPO 2 — Prescripción & Docs
                     </div>
@@ -555,11 +555,11 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
           const activeItem = g3Items.find(item => item.id === activeTab);
 
           return (
-            <div className="relative inline-block text-left">
+            <div className="relative inline-block text-left shrink-0">
               <button
                 type="button"
                 onClick={() => setOpenGroup(openGroup === 'g3' ? null : 'g3')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
                   isG3Active
                     ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
                     : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
@@ -568,7 +568,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                 <Clock className="w-4 h-4 shrink-0" />
                 <div className="flex flex-col text-left leading-tight">
                   <span className="text-[9px] uppercase tracking-wider font-extrabold opacity-80">GRUPO 3</span>
-                  <span className="text-xs truncate max-w-[140px] sm:max-w-[180px]">
+                  <span className="text-xs truncate max-w-[110px] sm:max-w-[180px]">
                     {activeItem ? activeItem.label : 'Historial & Escalas'}
                   </span>
                 </div>
@@ -578,7 +578,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
               {openGroup === 'g3' && (
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setOpenGroup(null)} />
-                  <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
+                  <div className="absolute left-0 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
                     <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-900/50">
                       GRUPO 3 — Historial & Diagnóstico
                     </div>
@@ -621,7 +621,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
             setActiveTab('ai_medical');
             setOpenGroup(null);
           }}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer border ${
+          className={`shrink-0 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer border ${
             activeTab === 'ai_medical'
               ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
               : 'bg-slate-900/80 text-cyan-300 hover:text-white hover:bg-slate-800 border-cyan-500/30'
@@ -638,7 +638,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
             setActiveTab('emergency_mode');
             setOpenGroup(null);
           }}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer border ${
+          className={`shrink-0 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer border ${
             activeTab === 'emergency_mode'
               ? 'bg-rose-500 text-slate-900 border-rose-500 shadow-lg shadow-rose-500/20 font-extrabold'
               : 'bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border-rose-500/30'
