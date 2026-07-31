@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Pill, Activity, ShieldAlert, HeartPulse, Stethoscope, CheckCircle2, 
-  Copy, Printer, X, Sparkles, AlertCircle, FileText, ChevronRight, 
+  Copy, Printer, X, Sparkles, AlertCircle, FileText, ChevronRight, ChevronDown, ChevronUp,
   Edit3, Share2, Download, FolderPlus, Plus, Trash2, Save, Undo 
 } from 'lucide-react';
 import { EMREntry } from '../types';
@@ -53,6 +53,7 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
   const [copied, setCopied] = useState(false);
   const [savedToEmr, setSavedToEmr] = useState(false);
   const [activeTab, setActiveTab] = useState<'farmaco' | 'conducta' | 'pruebas' | 'alarmas'>('farmaco');
+  const [showActions, setShowActions] = useState(false);
   
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -534,59 +535,26 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
           )}
         </div>
 
-        {/* Tab Selector - Horizontally Scrollable without wrap clutter */}
-        <div className="flex items-center overflow-x-auto max-w-full border-b border-slate-800 bg-slate-900/80 text-xs font-bold px-2 sm:px-4 gap-1 pt-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('farmaco')}
-            className={`shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'farmaco'
-                ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
-          >
-            <Pill className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
-            <span>💊 Medicamentos ({medications.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('conducta')}
-            className={`shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'conducta'
-                ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
-          >
-            <Stethoscope className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
-            <span>📋 Conducta Médica</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('pruebas')}
-            className={`shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'pruebas'
-                ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
-            <span>🔬 Pruebas Sugeridas</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('alarmas')}
-            className={`shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'alarmas'
-                ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
-          >
-            <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
-            <span>🚨 Criterios de Alarma</span>
-          </button>
+        {/* Dropdown Selector para Secciones de Tratamiento (Lista Desplegable) */}
+        <div className="bg-slate-900/90 border-b border-slate-800 p-2.5 sm:p-3.5 flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2.5 shrink-0">
+          <label htmlFor="treatment-section-select" className="text-xs font-bold text-slate-300 flex items-center gap-2">
+            <FileText className="w-4 h-4 text-emerald-400" />
+            <span>Sección de Tratamiento:</span>
+          </label>
+          <div className="relative flex-1 max-w-full xs:max-w-xs">
+            <select
+              id="treatment-section-select"
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as 'farmaco' | 'conducta' | 'pruebas' | 'alarmas')}
+              className="w-full bg-slate-950 border border-emerald-500/50 hover:border-emerald-400 text-emerald-300 font-bold text-xs sm:text-sm rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 cursor-pointer appearance-none shadow-sm transition-all"
+            >
+              <option value="farmaco">💊 Medicamentos y Dosis ({medications.length})</option>
+              <option value="conducta">📋 Conducta Médica</option>
+              <option value="pruebas">🔬 Pruebas Sugeridas</option>
+              <option value="alarmas">🚨 Criterios de Alarma</option>
+            </select>
+            <ChevronDown className="w-4 h-4 text-emerald-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         </div>
 
         {/* Modal Main Content Area */}
@@ -830,66 +798,119 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
           </div>
         )}
 
-        {/* Footer Actions Bar - Complete Actions Suite */}
-        <div className="bg-slate-900/95 border-t border-slate-800 p-2.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs shrink-0">
-          <div className="grid grid-cols-2 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
-            {/* COPY */}
+        {/* Footer Actions Bar - Collapsible Action Suite */}
+        <div className="bg-slate-900/95 border-t border-slate-800 p-2.5 sm:p-4 flex flex-col space-y-2.5 shrink-0 z-10">
+          <div className="flex items-center justify-between gap-2 w-full">
+            {/* TOGGLE ARROW BUTTON FOR ACTION BUTTONS */}
             <button
-              onClick={handleCopy}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs"
-              title="Copiar texto plano al portapapeles"
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowActions((prev) => !prev);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold px-3.5 py-2.5 rounded-xl border border-emerald-400/50 flex items-center gap-2 transition-all cursor-pointer shadow-md text-xs select-none"
+              title="Haz clic para mostrar u ocultar opciones de copiar, compartir, imprimir y guardar"
             >
-              {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-              <span>{copied ? '¡Copiado!' : 'Copiar'}</span>
+              <Share2 className="w-4 h-4 text-emerald-100 shrink-0" />
+              <span>Opciones de Exportación y Guardado</span>
+              {showActions ? (
+                <ChevronUp className="w-4 h-4 text-emerald-100 shrink-0 ml-1" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-emerald-100 shrink-0 ml-1" />
+              )}
             </button>
 
-            {/* GREEN WHATSAPP BUTTON */}
             <button
-              onClick={handleShareWhatsApp}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl border border-emerald-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
-              title="Compartir esquema de tratamiento por WhatsApp"
+              type="button"
+              onClick={onClose}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-5 py-2 rounded-xl transition-all cursor-pointer border border-slate-700 shrink-0 text-xs"
             >
-              <Share2 className="w-4 h-4 text-emerald-100" />
-              <span>WhatsApp</span>
-            </button>
-
-            {/* BLUE DESCARGAR PDF BUTTON */}
-            <button
-              onClick={handleDownloadPDF}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-2 rounded-xl border border-blue-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
-              title="Generar y descargar documento PDF"
-            >
-              <Download className="w-4 h-4 text-blue-100" />
-              <span>PDF</span>
-            </button>
-
-            {/* PRINT BUTTON */}
-            <button
-              onClick={handlePrint}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs"
-              title="Imprimir prescripción"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Imprimir</span>
-            </button>
-
-            {/* SAVE TO EMR BUTTON */}
-            <button
-              onClick={handleSaveToEMR}
-              className="col-span-2 xs:col-span-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-2 rounded-xl border border-indigo-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
-              title="Guardar como registro en el Historial Clínico del Paciente"
-            >
-              <FolderPlus className="w-4 h-4 text-indigo-100" />
-              <span className="truncate">{savedToEmr ? '✓ Guardado' : 'Guardar en Historial'}</span>
+              Cerrar
             </button>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-5 py-2 rounded-xl transition-all cursor-pointer border border-slate-700 shrink-0 text-xs"
-          >
-            Cerrar
-          </button>
+          {/* COLLAPSIBLE ACTION BUTTONS (COPIAR, WHATSAPP, PDF, IMPRIMIR, GUARDAR EN HISTORIAL) */}
+          {showActions && (
+            <div className="pt-2.5 border-t border-slate-800 animate-fade-in">
+              <div className="grid grid-cols-2 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 w-full">
+                {/* COPY */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCopy();
+                  }}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs shadow-sm"
+                  title="Copiar texto plano al portapapeles"
+                >
+                  {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> : <Copy className="w-4 h-4 text-slate-300 shrink-0" />}
+                  <span>{copied ? '¡Copiado!' : 'Copiar'}</span>
+                </button>
+
+                {/* GREEN WHATSAPP BUTTON */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleShareWhatsApp();
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl border border-emerald-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
+                  title="Compartir esquema de tratamiento por WhatsApp"
+                >
+                  <Share2 className="w-4 h-4 text-emerald-100 shrink-0" />
+                  <span>WhatsApp</span>
+                </button>
+
+                {/* BLUE DESCARGAR PDF BUTTON */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDownloadPDF();
+                  }}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-2 rounded-xl border border-blue-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
+                  title="Generar y descargar documento PDF"
+                >
+                  <Download className="w-4 h-4 text-blue-100 shrink-0" />
+                  <span>PDF</span>
+                </button>
+
+                {/* PRINT BUTTON */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handlePrint();
+                  }}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs shadow-sm"
+                  title="Imprimir prescripción"
+                >
+                  <Printer className="w-4 h-4 text-slate-300 shrink-0" />
+                  <span>Imprimir</span>
+                </button>
+
+                {/* SAVE TO EMR BUTTON */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSaveToEMR();
+                  }}
+                  className="col-span-2 xs:col-span-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-2 rounded-xl border border-indigo-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
+                  title="Guardar como registro en el Historial Clínico del Paciente"
+                >
+                  <FolderPlus className="w-4 h-4 text-indigo-100 shrink-0" />
+                  <span className="truncate">{savedToEmr ? '✓ Guardado' : 'Guardar en Historial'}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
