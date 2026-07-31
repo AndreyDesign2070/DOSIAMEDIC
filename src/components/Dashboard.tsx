@@ -113,11 +113,8 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
         const parsed = JSON.parse(storedP);
         if (Array.isArray(parsed)) {
           setPatients(parsed);
-          if (parsed.length > 0) {
-            setActivePatientId(prev => (prev && parsed.some(p => p.id === prev) ? prev : parsed[0].id));
-          } else {
-            setActivePatientId('');
-          }
+          // Always keep activePatientId empty ('') on login/re-entry unless previously selected in current session
+          setActivePatientId(prev => (prev && parsed.some(p => p.id === prev) ? prev : ''));
         }
       } else {
         // First time entering on a new license -> 0 patients
@@ -137,11 +134,8 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
       if (normKey) {
         localStorage.setItem(storageKey, JSON.stringify(list));
       }
-      if (list.length > 0) {
-        setActivePatientId(prev => (prev && list.some(p => p.id === prev) ? prev : list[0].id));
-      } else {
-        setActivePatientId('');
-      }
+      // Keep activePatientId as '' unless doctor explicitly selected a valid patient in current session
+      setActivePatientId(prev => (prev && list.some(p => p.id === prev) ? prev : ''));
     });
 
     return () => unsubscribe();
@@ -178,10 +172,9 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     setNewGlasgowMotor(6);
   };
 
-  // Mandatory Points 1 to 7 validation
+  // Mandatory validation (Name and Card ID are optional)
   const isMandatoryValid = Boolean(
     newCategory &&
-    newName.trim().length >= 2 &&
     newAge !== '' && Number(newAge) >= 0 &&
     newWeight !== '' && Number(newWeight) > 0 &&
     newHeight !== '' && Number(newHeight) > 0 &&
@@ -191,17 +184,20 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
   const handleCreatePatient = () => {
     if (!isMandatoryValid) {
-      alert('Por favor complete todos los campos obligatorios del punto 1 al 7.');
+      alert('Por favor complete los datos básicos (Categoría, Edad, Peso, Talla, Grupo Sanguíneo y Estado).');
       return;
     }
 
     const ageNum = Number(newAge) || 30;
     const totalGlasgow = Number(newGlasgowOcular) + Number(newGlasgowVerbal) + Number(newGlasgowMotor);
 
+    const finalName = newName.trim() || `Paciente #${Math.floor(1000 + Math.random() * 9000)}`;
+    const finalCardId = newCardId.trim() || `C.I.-${Math.floor(10000000 + Math.random() * 90000000)}`;
+
     const newP: Patient = {
       id: `p-${Date.now()}`,
-      name: newName.trim(),
-      cardId: newCardId.trim() || `C.I.-${Math.floor(10000000 + Math.random() * 90000000)}`,
+      name: finalName,
+      cardId: finalCardId,
       hcNumber: `HC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
       patientCategory: newCategory,
       age: ageNum,
@@ -658,36 +654,107 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         
         {/* TAB 1: PERFIL DEL PACIENTE */}
-        {activeTab === 'patient_profile' && activePatient && (
-          <div className="space-y-6 animate-fade-in">
-            <PatientProfileCard
-              patient={activePatient}
-              onUpdatePatient={handleUpdatePatient}
-              onOpenConsultation={() => setActiveTab('clinical_consultation')}
-            />
-            <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
-          </div>
+        {activeTab === 'patient_profile' && (
+          activePatient ? (
+            <div className="space-y-6 animate-fade-in">
+              <PatientProfileCard
+                patient={activePatient}
+                onUpdatePatient={handleUpdatePatient}
+                onOpenConsultation={() => setActiveTab('clinical_consultation')}
+                onSaveToEMR={(newEntry) => setEmrEntries([newEntry, ...emrEntries])}
+              />
+              <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
+            </div>
+          ) : (
+            <div className="bg-brand-navy-light/40 border border-slate-800 rounded-3xl p-10 text-center space-y-4 max-w-xl mx-auto my-12 backdrop-blur-md animate-fade-in shadow-2xl">
+              <div className="w-16 h-16 bg-brand-teal/10 border border-brand-teal/20 text-brand-teal rounded-full flex items-center justify-center mx-auto">
+                <User className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-white font-display">Ningún Paciente Seleccionado</h3>
+              <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
+                El perfil de paciente se encuentra actualmente vacío. Seleccione un paciente registrado en el menú superior o registre un nuevo paciente para comenzar la evaluación clínica.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewPatientModal(true)}
+                  className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-brand-teal/10"
+                >
+                  <Plus className="w-4 h-4" /> Registrar Nuevo Paciente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPatientsListModal(true)}
+                  className="bg-white hover:bg-slate-100 text-slate-900 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-slate-200"
+                >
+                  <User className="w-4 h-4 text-brand-navy" /> Ver Lista de Pacientes ({patients.length})
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         {/* TAB 2: CONSULTA CLÍNICA */}
-        {activeTab === 'clinical_consultation' && activePatient && (
-          <div className="space-y-6 animate-fade-in">
-            <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
-            <PrescriptionEngineModule
-              patient={activePatient}
-              medicationsList={medications}
-              onGeneratePrescription={(meds, diag, obs) => {
-                setActiveTab('documents');
-              }}
-            />
-          </div>
+        {activeTab === 'clinical_consultation' && (
+          activePatient ? (
+            <div className="space-y-6 animate-fade-in">
+              <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
+              <PrescriptionEngineModule
+                patient={activePatient}
+                medicationsList={medications}
+                onGeneratePrescription={(meds, diag, obs) => {
+                  setActiveTab('documents');
+                }}
+              />
+            </div>
+          ) : (
+            <div className="bg-brand-navy-light/40 border border-slate-800 rounded-3xl p-10 text-center space-y-4 max-w-xl mx-auto my-12 backdrop-blur-md animate-fade-in shadow-2xl">
+              <div className="w-16 h-16 bg-brand-teal/10 border border-brand-teal/20 text-brand-teal rounded-full flex items-center justify-center mx-auto">
+                <FileText className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-white font-display">Ningún Paciente Seleccionado</h3>
+              <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
+                Seleccione un paciente para iniciar la consulta clínica, evaluación de signos vitales y prescripción.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPatientsListModal(true)}
+                  className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <User className="w-4 h-4" /> Seleccionar Paciente
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         {/* TAB 3: EVALUACIÓN AUTOMÁTICA */}
-        {activeTab === 'auto_evaluation' && activePatient && (
-          <div className="space-y-6 animate-fade-in">
-            <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
-          </div>
+        {activeTab === 'auto_evaluation' && (
+          activePatient ? (
+            <div className="space-y-6 animate-fade-in">
+              <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
+            </div>
+          ) : (
+            <div className="bg-brand-navy-light/40 border border-slate-800 rounded-3xl p-10 text-center space-y-4 max-w-xl mx-auto my-12 backdrop-blur-md animate-fade-in shadow-2xl">
+              <div className="w-16 h-16 bg-brand-teal/10 border border-brand-teal/20 text-brand-teal rounded-full flex items-center justify-center mx-auto">
+                <Activity className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-white font-display">Ningún Paciente Seleccionado</h3>
+              <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
+                Seleccione un paciente para visualizar su tríada de evaluación clínica y semáforo de riesgo.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPatientsListModal(true)}
+                  className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <User className="w-4 h-4" /> Seleccionar Paciente
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         {/* TAB 4: PRESCRIPCIÓN & VADEMÉCUM */}
@@ -862,12 +929,12 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
                 {/* Point 2: Nombre y Apellido */}
                 <div>
-                  <label className="text-slate-300 font-bold block mb-1">2. Nombre y Apellido Completo *</label>
+                  <label className="text-slate-300 font-bold block mb-1">2. Nombre y Apellido Completo (Opcional)</label>
                   <input
                     type="text"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Ej. Carmen María Delgado"
+                    placeholder="Ej. Carmen María Delgado (Opcional)"
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium"
                   />
                 </div>
@@ -1145,13 +1212,13 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
             <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-800">
               <span className="text-[11px] font-mono text-slate-400">
                 {isMandatoryValid ? (
-                  <span className="text-emerald-400 font-bold">✓ Puntos 1 a 7 listos para registrar</span>
+                  <span className="text-emerald-400 font-bold">✓ Datos listos para crear perfil</span>
                 ) : (
-                  <span className="text-amber-400 font-bold">⚠️ Complete los puntos 1 a 7 obligatorios</span>
+                  <span className="text-amber-400 font-bold">⚠️ Complete edad, peso y talla</span>
                 )}
               </span>
 
-              <div className="flex gap-2">
+              <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowNewPatientModal(false)}
@@ -1159,6 +1226,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                 >
                   Cancelar
                 </button>
+
                 <button
                   type="button"
                   onClick={handleCreatePatient}

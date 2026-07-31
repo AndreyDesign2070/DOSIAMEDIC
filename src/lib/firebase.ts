@@ -130,15 +130,15 @@ export function mergeLicenses(...sources: (License[] | undefined | null)[]): Lic
         activatedDeviceId: cleanDev
       };
 
-      if (resultMap.has(kNorm)) {
-        const existing = resultMap.get(kNorm)!;
+      if (!resultMap.has(kNorm)) {
+        resultMap.set(kNorm, cleanLic);
+      } else {
+        const higherPriority = resultMap.get(kNorm)!;
         resultMap.set(kNorm, {
           ...cleanLic,
-          ...existing,
-          key: (existing.key && existing.key.includes('-') ? existing.key : cleanLic.key) || existing.key
+          ...higherPriority,
+          key: (higherPriority.key && higherPriority.key.includes('-') ? higherPriority.key : cleanLic.key) || higherPriority.key
         });
-      } else {
-        resultMap.set(kNorm, cleanLic);
       }
     }
   }
@@ -194,7 +194,7 @@ export async function fetchCloudLicenses(): Promise<License[]> {
           cloudList.push(data);
         }
       });
-      const merged = mergeLicenses(cloudList, getMergedLocal());
+      const merged = mergeLicenses(getMergedLocal(), cloudList);
       updateLicensesCache(merged);
       return merged;
     })();
@@ -304,7 +304,7 @@ export function subscribeCloudLicenses(callback: (licenses: License[]) => void) 
         if (localStr) localLics = JSON.parse(localStr);
       } catch (e) {}
 
-      const merged = mergeLicenses(cloudList, localLics, memoryLicensesCache, DEFAULT_SEED_LICENSES);
+      const merged = mergeLicenses(memoryLicensesCache, localLics, cloudList, DEFAULT_SEED_LICENSES);
       updateLicensesCache(merged);
       callback(merged);
     },

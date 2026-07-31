@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
-import { User, Activity, ShieldAlert, Calendar, Stethoscope, Edit3, FileText, Check, Plus, Trash2, Baby, Calculator, X, Sparkles } from 'lucide-react';
-import { Patient, BloodGroup, PatientStatus } from '../types';
+import { User, Activity, ShieldAlert, Calendar, Stethoscope, Edit3, FileText, Check, Plus, Trash2, Baby, Calculator, X, Sparkles, Pill } from 'lucide-react';
+import { Patient, BloodGroup, PatientStatus, EMREntry } from '../types';
+import TreatmentModal, { PatientTreatmentData } from './TreatmentModal';
 
 interface PatientProfileCardProps {
   patient: Patient | null;
   onUpdatePatient?: (updated: Patient) => void;
   onOpenConsultation?: () => void;
   onOpenNewPatientModal?: () => void;
+  onSaveToEMR?: (entry: EMREntry) => void;
 }
 
 export default function PatientProfileCard({
   patient,
   onUpdatePatient,
   onOpenConsultation,
-  onOpenNewPatientModal
+  onOpenNewPatientModal,
+  onSaveToEMR
 }: PatientProfileCardProps) {
   if (!patient) {
     return (
@@ -42,6 +45,34 @@ export default function PatientProfileCard({
 
   const [isEditing, setIsEditing] = useState(false);
   const [showDoseCalcModal, setShowDoseCalcModal] = useState(false);
+  const [showTreatmentModal, setShowTreatmentModal] = useState(false);
+
+  const getPatientTreatmentData = (): PatientTreatmentData => {
+    return {
+      name: patient.name,
+      category: patient.patientCategory || (patient.age < 15 ? 'PEDIÁTRICO' : 'ADULTO'),
+      age: patient.age,
+      weight: patient.weight,
+      height: patient.height,
+      bloodGroup: patient.bloodGroup || 'O+',
+      status: patient.status || 'Estable',
+      sex: patient.sex || 'F',
+      cardId: patient.cardId,
+      vitalSigns: patient.vitalSigns ? {
+        heartRate: patient.vitalSigns.heartRate,
+        bloodPressure: patient.vitalSigns.bloodPressure,
+        temperature: patient.vitalSigns.temperature,
+        oxygenSaturation: patient.vitalSigns.oxygenSaturation,
+        respiratoryRate: patient.vitalSigns.respiratoryRate,
+        painScale: patient.vitalSigns.painEva,
+        glycemia: patient.vitalSigns.glycemia,
+        diuresis: patient.vitalSigns.diuresisMlHr,
+        glasgow: patient.vitalSigns.glasgow ? (patient.vitalSigns.glasgow.ocular + patient.vitalSigns.glasgow.verbal + patient.vitalSigns.glasgow.motor) : 15
+      } : undefined,
+      allergies: patient.allergies || [],
+      chronicDiseases: patient.preExistingConditions || patient.alerts?.chronicDiseases || []
+    };
+  };
 
   // Dose Calculator State
   const [calcWeight, setCalcWeight] = useState(patient.weight || 15);
@@ -164,6 +195,16 @@ export default function PatientProfileCard({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Green TRATAMIENTO Button */}
+          <button
+            type="button"
+            onClick={() => setShowTreatmentModal(true)}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-600/30 cursor-pointer"
+            title="Ver tratamiento médico sugerido completo para este paciente"
+          >
+            <Pill className="w-4 h-4" /> TRATAMIENTO
+          </button>
+
           {/* Prompt Request #3: Dose Calculator Button inside Patient Profile */}
           <button
             type="button"
@@ -513,6 +554,34 @@ export default function PatientProfileCard({
         </div>
 
       </div>
+
+      {/* PROMINENT TRATAMIENTO BUTTON AT THE BOTTOM OF PATIENT PROFILE */}
+      <div className="mt-6 border-t border-slate-800/80 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+        <div className="text-left">
+          <h4 className="text-sm font-bold text-white flex items-center gap-2">
+            <Pill className="w-4 h-4 text-emerald-400" /> Esquema de Tratamiento Médico del Paciente
+          </h4>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Consulte la guía de actuación, medicamentos recomendados, dosis exactas calculadas por peso y conducta clínica.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowTreatmentModal(true)}
+          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/60 cursor-pointer transition-all border border-emerald-400/30 shrink-0"
+        >
+          <Pill className="w-4 h-4 text-emerald-100" /> TRATAMIENTO
+        </button>
+      </div>
+
+      {/* TREATMENT MODAL */}
+      <TreatmentModal
+        isOpen={showTreatmentModal}
+        onClose={() => setShowTreatmentModal(false)}
+        patientData={getPatientTreatmentData()}
+        onSaveToEMR={onSaveToEMR}
+      />
 
       {/* DOSE CALCULATOR MODAL (Prompt Request #3) */}
       {showDoseCalcModal && (

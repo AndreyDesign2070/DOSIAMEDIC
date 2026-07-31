@@ -371,43 +371,46 @@ export default function DocumentsCertificationsModule({
             />
           </div>
 
-          {/* Finger Signature Draw Section (Prompt Request #5) */}
+          {/* Finger Signature Draw Section */}
           <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase font-bold text-slate-300 flex items-center gap-1.5">
-                <PenTool className="w-3.5 h-3.5 text-brand-teal" /> Firma Hecha con el Dedo / Ratón (Opcional)
+                <PenTool className="w-3.5 h-3.5 text-brand-teal" /> Firma Digital Manuscrita
               </span>
               <button
                 type="button"
-                onClick={() => setShowSignaturePad(!showSignaturePad)}
-                className="text-xs text-brand-teal hover:underline font-bold"
+                onClick={() => setShowSignaturePad(true)}
+                className="text-xs bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-brand-teal/10"
               >
-                {showSignaturePad ? 'Ocultar Panel de Firma' : fingerSignatureDataUrl ? 'Cambiar Firma' : 'Trazar Firma Digital'}
+                <PenTool className="w-3.5 h-3.5" />
+                {fingerSignatureDataUrl ? 'Cambiar Firma Digital' : 'Trazar Firma Digital'}
               </button>
             </div>
 
             {showSignaturePad && (
-              <div className="pt-2 touch-none overscroll-contain select-none">
-                <SignaturePad
-                  onSave={(dataUrl) => {
-                    setFingerSignatureDataUrl(dataUrl);
-                    setShowSignaturePad(false);
-                  }}
-                  initialValue={fingerSignatureDataUrl || undefined}
-                />
-              </div>
+              <SignaturePad
+                onSave={(dataUrl) => {
+                  setFingerSignatureDataUrl(dataUrl);
+                  setShowSignaturePad(false);
+                }}
+                onCancel={() => setShowSignaturePad(false)}
+                initialValue={fingerSignatureDataUrl || undefined}
+                isModal={true}
+              />
             )}
 
-            {fingerSignatureDataUrl && !showSignaturePad && (
-              <div className="flex items-center justify-between bg-slate-950 p-2 rounded-lg border border-slate-800">
-                <div className="flex items-center gap-2">
-                  <img src={fingerSignatureDataUrl} alt="Firma" className="h-8 object-contain bg-white/10 rounded px-2" />
-                  <span className="text-[10px] text-emerald-400 font-bold">Firma manuscrita guardada</span>
+            {fingerSignatureDataUrl && (
+              <div className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 mt-2">
+                <div className="flex items-center gap-3">
+                  <img src={fingerSignatureDataUrl} alt="Firma" className="h-10 object-contain bg-white rounded px-2 py-1 shadow-sm" />
+                  <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                    ✓ Firma digital registrada
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setFingerSignatureDataUrl(null)}
-                  className="text-[10px] text-rose-400 hover:underline font-bold"
+                  className="text-xs text-rose-400 hover:text-rose-300 hover:underline font-bold px-2 py-1 cursor-pointer"
                 >
                   Eliminar
                 </button>

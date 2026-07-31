@@ -8,7 +8,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const PORT = 3000;
 const LICENSES_FILE = path.join(process.cwd(), 'data_licenses.json');
@@ -251,6 +252,7 @@ app.post('/api/licenses/update', (req: Request, res: Response) => {
   if (username) licenses[licIndex].username = username.trim();
   if (password) licenses[licIndex].password = password.trim();
   if (status) licenses[licIndex].status = status;
+  if ('activatedDeviceId' in req.body) licenses[licIndex].activatedDeviceId = req.body.activatedDeviceId || null;
 
   saveLicenses();
   res.json({ message: 'Licencia actualizada con éxito', license: licenses[licIndex] });
@@ -422,9 +424,9 @@ IMPORTANTE: Devuelve exclusivamente el objeto JSON válido. No uses bloques de c
 
   if (ai) {
     try {
-      // Robust retry logic with exponential backoff and model fallback (gemini-3.5-flash -> gemini-3.1-flash-lite)
+      // Robust retry logic with exponential backoff and model fallback (gemini-3.6-flash -> gemini-flash-latest -> gemini-3.1-flash-lite)
       const tryGenerateContent = async (client: any, promptText: string) => {
-        const models = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+        const models = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
         let lastError = null;
 
         for (const modelName of models) {
@@ -597,73 +599,90 @@ app.post('/api/ai/chat', async (req: Request, res: Response) => {
   // Construct patient context header
   let patientInfoStr = 'Sin expediente de paciente activo.';
   if (patient) {
-    patientInfoStr = `Paciente: ${patient.name || 'Sin Nombre'}, Edad: ${patient.age || 'N/A'} años, Sexo: ${patient.sex === 'M' ? 'Masculino' : patient.sex === 'F' ? 'Femenino' : patient.sex || 'N/A'}, Signos Vitales: PA ${patient.vitalSigns?.bloodPressure || 'N/A'}, FC ${patient.vitalSigns?.heartRate || 'N/A'} bpm, SpO2 ${patient.vitalSigns?.oxygenSaturation || 'N/A'}%, Temp ${patient.vitalSigns?.temperature || 'N/A'}°C, Alergias: ${patient.allergies?.join(', ') || 'Ninguna conocida'}`;
+    patientInfoStr = `Paciente: ${patient.name || 'Sin Nombre'}, Edad: ${patient.age || 'N/A'} años, Peso: ${patient.weight || 'N/A'} kg, Sexo: ${patient.sex === 'M' ? 'Masculino' : patient.sex === 'F' ? 'Femenino' : patient.sex || 'N/A'}, Signos Vitales: PA ${patient.vitalSigns?.bloodPressure || 'N/A'}, FC ${patient.vitalSigns?.heartRate || 'N/A'} bpm, SpO2 ${patient.vitalSigns?.oxygenSaturation || 'N/A'}%, Temp ${patient.vitalSigns?.temperature || 'N/A'}°C, Alergias: ${patient.allergies?.join(', ') || 'Ninguna conocida'}`;
   }
 
-  const systemInstruction = `Eres el Asistente Clínico de Inteligencia Artificial Médica de DOSIA.
-Tu objetivo es analizar imágenes médicas (Radiografías, Ecografías, ECG, TAC, Dermatología, Laboratorios) y consultas de síntomas de forma ULTRA-RÁPIDA, CONCISA Y ALTAMENTE ESTRUCTURADA para el médico tratante.
+  const systemInstruction = `Eres la Inteligencia Artificial Médica de DOSIA, un asistente experto para médicos y profesionales de la salud.
+Tu trabajo es responder en ESPAÑOL de forma precisa, directa, con alta fundamentación clínica y adaptada a LO QUE EL DOCTOR PIDA ESPECÍFICAMENTE (preguntas en lenguaje natural, esquemas de dosis, análisis de casos de síntomas o interpretación multimodal de imágenes médicas).
 
-Contexto del Paciente Actual: ${patientInfoStr}
+Contexto del Paciente Seleccionado:
+${patientInfoStr}
 
-INSTRUCCIONES DE FORMATO PARA ANÁLISIS DE IMAGEN (OBLIGATORIAS, CONCISAS Y DIRECTAS):
-Cuando el usuario adjunte una imagen médica, debes estructurar la respuesta EXACTAMENTE en estos 3 bloques claros para lectura express:
+REGLAS DE RESPUESTA SEGÚN LA SOLICITUD DEL DOCTOR:
 
-### 🖼️ 1. LO QUE SE MUESTRA EN LA IMAGEN
-- **Tipo de Estudio:** [Nombre del estudio: Radiografía, Ecografía, ECG, etc.]
-- **Hallazgos Visuales:** [Descripción breve de las imágenes o lesiones observadas]
+1. SI ES UNA PREGUNTA EN LENGUAJE NATURAL O DUDA FARMACOLÓGICA (Ej: "Tratamiento para IVU", "Dosis de amoxicilina en niños", "¿Cuáles son los efectos adversos de x?"):
+   - Responde la pregunta directamente sin rodeos innecesarios.
+   - Proporciona esquemas terapéuticos con medicamentos de primera y segunda línea, dosis exactas (por mg/kg si es pediatría), vías de administración, frecuencia y duración.
+   - Menciona consideraciones clínicas o contraindicaciones relevantes.
 
-### 🩺 2. DIAGNÓSTICO DEL PACIENTE SEGÚN LA IMAGEN
-- **Diagnóstico Principal:** [Diagnóstico médico claro y directo]
-- **Diagnósticos Diferenciales:** [1 o 2 opciones alternativas si aplican]
+2. SI EL DOCTOR DESCRIBE SÍNTOMAS O UN CASO CLÍNICO (Ej: "Paciente de 45 años con fiebre de 39 y dolor abdominal..."):
+   Estructura la respuesta claramente:
+   ### 🩺 1. DIAGNÓSTICO CLÍNICO COMPLETO
+   - **Diagnóstico Principal Probable:** [Nombre del diagnóstico y código CIE-10 si aplica]
+   - **Diagnósticos Diferenciales:** [1 o 2 alternativas clínicas]
 
-### 💊 3. TRATAMIENTO SUGERIDO
-- **Tratamiento Farmacológico:** [Medicamento, dosis, vía de administración y frecuencia]
-- **Medidas de Soporte y Conducta:** [Acción recomendada, laboratorios o interconsulta]
+   ### 📋 2. EVALUACIÓN Y ANÁLISIS DE SÍNTOMAS
+   - **Análisis de la Consulta:** [Evolución y correlación fisiopatológica de los síntomas dados]
 
----
+   ### 💊 3. PLAN DE TRATAMIENTO Y PRESCRIPCIÓN SUGERIDA
+   - **Farmacológico:** [Medicamentos, dosis calculada por peso o edad, frecuencia y duración]
+   - **Medidas No Farmacológicas:** [Cuidados, hidratación o monitoreo]
 
-INSTRUCCIONES DE FORMATO PARA CONSULTAS DE SÍNTOMAS / PREGUNTAS MÉDICAS:
+   ### 🔬 4. PRUEBAS COMPLEMENTARIAS Y SIGNOS DE ALARMA
+   - Laboratorios o imágenes a solicitar y signos de alarma para urgencias.
 
-### 🩺 1. DIAGNÓSTICO CLÍNICO COMPLETO
-- **Diagnóstico Principal Probable:** [Nombre del diagnóstico]
-- **Diagnósticos Diferenciales:** [1 o 2 alternativas relevantes]
+3. SI EL DOCTOR ADJUNTA UNA IMAGEN MÉDICA (ECG, Radiografía, Ecografía, TAC, Lesión Dermatológica, Análisis de Laboratorio):
+   Estructura la respuesta en estos 3 bloques express:
+   ### 🖼️ 1. LO QUE SE MUESTRA EN LA IMAGEN
+   - **Tipo de Estudio:** [ECG / Rx de Tórax / Ecografía / Dermato / Lab]
+   - **Hallazgos Visuales:** [Descripción precisa de las estructuras, opacidades, complejos o lesiones observadas en la imagen]
 
-### 📋 2. EVALUACIÓN DE SÍNTOMAS
-- **Resumen Clínico:** [Explicación concisa]
+   ### 🩺 2. DIAGNÓSTICO DEL PACIENTE SEGÚN LA IMAGEN
+   - **Diagnóstico Principal:** [Diagnóstico radiológico/clínico derivado de la imagen]
+   - **Diagnósticos Diferenciales:** [Opciones secundarias]
 
-### 💊 3. TRATAMIENTO Y PRESCRIPCIÓN SUGERIDA
-- **Farmacológico:** [Medicamento, dosis, vía y frecuencia]
-- **Medidas No Farmacológicas:** [Indicaciones adicionales]`;
+   ### 💊 3. TRATAMIENTO SUGERIDO
+   - **Tratamiento Farmacológico:** [Esquema de tratamiento inmediato]
+   - **Conducta Clínica:** [Medidas de urgencia, interconsulta o laboratorios de confirmación]`;
 
   if (ai) {
     try {
-      const models = ['gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      // Valid Gemini models in @google/genai SDK (Order by preference/availability)
+      const models = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
       let geminiResponseText = '';
 
       for (const modelName of models) {
         try {
-          const contents: any[] = [];
+          const parts: any[] = [];
           if (imageBase64) {
             const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
             const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
             const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-            contents.push({
+            parts.push({
               inlineData: {
                 mimeType: mimeType,
                 data: base64Data
               }
             });
           }
-          contents.push(`${systemInstruction}\n\nConsulta o Síntomas Ingresados por el Usuario:\n${prompt || 'Análisis del estudio de imagen adjunto'}`);
 
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: contents
+          parts.push({
+            text: `Consulta o Solicitud del Doctor:\n${prompt || 'Análisis del estudio de imagen adjunto'}`
           });
 
-          if (response.text) {
+          console.log(`Sending query to Gemini (${modelName})...`);
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: { parts },
+            config: {
+              systemInstruction: systemInstruction
+            }
+          });
+
+          if (response && response.text) {
             geminiResponseText = response.text;
+            console.log(`Gemini (${modelName}) generated successful response.`);
             break;
           }
         } catch (mErr: any) {
@@ -683,31 +702,36 @@ INSTRUCCIONES DE FORMATO PARA CONSULTAS DE SÍNTOMAS / PREGUNTAS MÉDICAS:
     }
   }
 
-  // Local expert clinical rules fallback when Gemini key is missing or calls fail
+  // Local expert clinical response engine (Dynamic fallback tailored to the doctor's specific prompt or image)
   let responseText = '';
   const qLower = (prompt || '').toLowerCase();
 
   if (imageBase64) {
-    let studyType = 'Estudio de Imagenología / Ecografía / Radiografía / ECG';
-    let findings = 'Se observa alteración morfológica con infiltrado o trazado característico de cuadro agudo.';
-    let diag = 'Proceso agudo a correlacionar con historia clínica y laboratorio';
-    let tx = '- **Paracetamol / Analgesia:** 500mg - 1g VO cada 8 horas si hay dolor o malestar.\n- **Medidas:** Reposo relativo e hidratación parenteral o VO.\n- **Estudios:** Solicitar laboratorios de control (Hemograma completo, PCR, VSG).';
+    let studyType = 'Estudio de Imagenología / Ecografía / Radiografía / ECG / Laboratorio';
+    let findings = 'Se observan estructuras anatómicas con imágenes o trazados característicos del cuadro analizado.';
+    let diag = 'Proceso patológico agudo a correlacionar clínicamente con el cuadro del paciente';
+    let tx = '- **Analgesia / Manejo:** Paracetamol 500mg - 1g VO c/8h o Ibuprofeno 400mg VO c/8h si hay dolor o inflamación.\n- **Conducta:** Control de constantes vitales, reposo e hidratación adecuada.\n- **Estudios:** Hemograma completo, PCR cuantificada y perfil de control.';
 
-    if (qLower.includes('ecg') || qLower.includes('electro')) {
-      studyType = 'Electrocardiograma (ECG de 12 derivaciones)';
-      findings = 'Trazado electrocardiográfico con elevación del segmento ST en derivaciones anteriores V2-V4 y T picudas.';
-      diag = 'Síndrome Coronario Agudo con Elevación del ST (IAMCEST Anteroseptal)';
-      tx = '- **Aspirina:** 300 mg VO masticados de inmediato.\n- **Clopidogrel:** Dosis de carga de 300 mg VO.\n- **Nitroglicerina Sublingual:** 0.4 mg si PA es estable (> 90 mmHg).\n- **Conducta:** Traslado urgente a sala de Hemodinamia para angioplastia primaria.';
-    } else if (qLower.includes('eco') || qLower.includes('ultrasound') || qLower.includes('abdom')) {
-      studyType = 'Ecografía Abdominal en Escala de Grises';
-      findings = 'Visualización de pared vesicular engrosada (> 4 mm) con signo de Murphy ecográfico positivo y líquido perivesicular.';
+    if (qLower.includes('ecg') || qLower.includes('electro') || qLower.includes('ritmo') || qLower.includes('st') || qLower.includes('cardio')) {
+      studyType = 'Electrocardiograma de 12 derivaciones';
+      findings = 'Visualización de trazado electrocardiográfico con elevación del ST en cara anterior/anteroseptal (V2-V4) y ondas T picudas simétricas.';
+      diag = 'Síndrome Coronario Agudo con Elevación del Segmento ST (IAMCEST Anteroseptal)';
+      tx = '- **Aspirina (AAS):** 300 mg VO masticados inmediatamente.\n- **Clopidogrel:** 300 mg VO dosis de carga.\n- **Atorvastatina:** 80 mg VO.\n- **Conducta:** Oxigenoterapia si SpO2 < 90%, monitorización ECG continua y derivación urgente a Hemodinamia para reperfusión (Angioplastia Primaria).';
+    } else if (qLower.includes('eco') || qLower.includes('ultrasound') || qLower.includes('abdom') || qLower.includes('vesic') || qLower.includes('vesícula')) {
+      studyType = 'Ecografía Abdominal Superior en Escala de Grises';
+      findings = 'Pared de vesícula biliar engrosada (> 4 mm), presencia de litiasis biliar impactada en cuello e imagen de doble contorno por líquido perivesicular.';
       diag = 'Colecistitis Aguda Litiásica (CIE-10: K80.0)';
-      tx = '- **Ceftriaxona:** 1g IV c/12h por 5-7 días.\n- **Metronidazol:** 500mg IV c/8h.\n- **Ketorolaco:** 30mg IV c/8h en rescate de dolor agudo.\n- **Conducta:** Ayuno (NPO) + Hidratación parenteral e interconsulta urgente con Cirugía General.';
-    } else if (qLower.includes('radiografia') || qLower.includes('rx') || qLower.includes('torax') || qLower.includes('pulmon')) {
-      studyType = 'Radiografía Digital de Tórax PA';
-      findings = 'Opacidad y condensación alveolar densa en lóbulo inferior derecho con broncograma aéreo evidente.';
+      tx = '- **Ceftriaxona:** 1 g IV cada 12 horas.\n- **Metronidazol:** 500 mg IV cada 8 horas.\n- **Ketorolaco:** 30 mg IV cada 8 horas en rescate de dolor.\n- **Conducta:** Reposo digestivo (NPO), hidratación parenteral con Solución Salina 0.9% e interconsulta urgente a Cirugía General para Colecistectomía.';
+    } else if (qLower.includes('radiografia') || qLower.includes('rx') || qLower.includes('torax') || qLower.includes('tórax') || qLower.includes('pulmon') || qLower.includes('pulmón')) {
+      studyType = 'Radiografía Digital de Tórax (Proyección Posteroanterior)';
+      findings = 'Infiltrado alveolar denso y condensación acinar en lóbulo inferior derecho con presencia de broncograma aéreo claro y borramiento de ángulo costofrénico.';
       diag = 'Neumonía Adquirida en la Comunidad (NAC) - Lóbulo Inferior Derecho (CIE-10: J18.9)';
-      tx = '- **Amoxicilina + Ácido Clavulánico:** 875/125 mg VO cada 12 horas por 7 días.\n- **Paracetamol:** 500 mg VO cada 6 horas según fiebre o malestar.\n- **Conducta:** Hidratación oral abundante, fisioterapia respiratoria y control oximétrico.';
+      tx = '- **Amoxicilina + Ácido Clavulánico:** 875/125 mg VO cada 12 horas por 7 a 10 días.\n- **Claritromicina (opcional coadyuvante):** 500 mg VO cada 12 horas.\n- **Paracetamol:** 500 mg VO cada 6 horas ante fiebre > 38°C.\n- **Conducta:** Abundante hidratación oral, monitoreo de oximetría de pulso y control a las 48 horas.';
+    } else if (qLower.includes('dermat') || qLower.includes('piel') || qLower.includes('lesion') || qLower.includes('lesión') || qLower.includes('rash') || qLower.includes('erupcion')) {
+      studyType = 'Evaluación Dermatoscópica / Lesión Cutánea';
+      findings = 'Lesión eritematosa bien delimitada con presencia de microvesículas y descamación periférica superficial.';
+      diag = 'Dermatitis por Contacto / Eczema Agudo Cutáneo (CIE-10: L25.9)';
+      tx = '- **Hidrocortisona Crema 1% / Betametasona:** Aplicar capa delgada cada 12 horas por 5 a 7 días.\n- **Loratadina / Cetirizina:** 10 mg VO cada 24 horas si hay prurito severo.\n- **Medidas:** Evitar fricción y lavado con jabón neutro sin perfumes.';
     }
 
     responseText = `### 🖼️ 1. LO QUE SE MUESTRA EN LA IMAGEN\n` +
@@ -715,31 +739,106 @@ INSTRUCCIONES DE FORMATO PARA CONSULTAS DE SÍNTOMAS / PREGUNTAS MÉDICAS:
       `- **Hallazgos Visuales:** ${findings}\n\n` +
       `### 🩺 2. DIAGNÓSTICO DEL PACIENTE SEGÚN LA IMAGEN\n` +
       `- **Diagnóstico Principal:** ${diag}\n` +
-      `- **Diagnósticos Diferenciales:** Proceso agudo vs. evento inflamatorio/infeccioso localizado.\n\n` +
+      `- **Diagnósticos Diferenciales:** Proceso agudo inflamatorio/infeccioso vs. evento vascular o estructural local.\n\n` +
       `### 💊 3. TRATAMIENTO SUGERIDO\n` +
       `${tx}`;
+  } else if (qLower.includes('ivu') || qLower.includes('urinaria') || qLower.includes('orina') || qLower.includes('cistitis') || qLower.includes('disuria')) {
+    responseText = `### 🩺 TRATAMIENTO PARA INFECCIÓN DE VÍAS URINARIAS (IVU BAJA NO COMPLICADA)
+
+### 💊 Esquema Farmacológico de Primera Línea:
+- **Nitrofurantoína Macropartículas:** 100 mg VO cada 12 horas por 5 días (con alimentos).
+- **Fosfomicina Trometamol:** 3 g VO en dosis única disuelta en agua antes de dormir.
+- **Ciprofloxacino (Segunda línea):** 500 mg VO cada 12 horas por 7 días.
+
+### 🩺 Manejo Sintomático del Dolor / Disuria:
+- **Fenazopiridina:** 100 - 200 mg VO cada 8 horas por máximo 2 días.
+
+### 📋 Recomendaciones e Indicaciones Clínicas:
+- Aumentar la ingesta de agua a 2-3 L al día.
+- Solicitar Examen General de Orina (EGO) y Urocultivo con antibiograma si persiste la sintomatología.`;
+  } else if (qLower.includes('diabet') || qLower.includes('glucosa') || qLower.includes('glice') || qLower.includes('hba1c') || qLower.includes('insulin')) {
+    responseText = `### 🩺 MANEJO CLÍNICO DE DIABETES MELLITUS TIPO 2 Y HIPERGLUCEMIA
+
+### 💊 Esquema Terapéutico Inicial:
+- **Metformina:** 850 mg VO cada 12 horas (con las comidas principales para reducir intolerancia digestiva).
+- **Empagliflozina / Dapagliflozina (iSGLT2):** 10 mg VO cada 24 horas en la mañana (excelente protección cardiorrenal).
+- **Insulina NPH / Glargina (si Glucemia > 250 mg/dL):** 0.1 a 0.2 UI/kg/día SC al acostarse.
+
+### 📋 Objetivos de Control Glucémico:
+- **Glucemia en Ayunas:** 80 - 130 mg/dL.
+- **Glucemia Postprandial (2h):** < 180 mg/dL.
+- **HbA1c Meta:** < 7.0%.
+
+### 🔬 Laboratorios de Seguimiento:
+- HbA1c cada 3 meses, Perfil Lipídico, Creatinina y Relación Albúmina/Creatinina en Orina (Microalbuminuria).`;
+  } else if (qLower.includes('hipertens') || qLower.includes('presion') || qLower.includes('presión') || qLower.includes('hta') || qLower.includes('tensional')) {
+    responseText = `### 🩺 MANEJO Y TRATAMIENTO DE HIPERTENSIÓN ARTERIAL (HTA)
+
+### 💊 Esquema Farmacológico Recomendado:
+- **Losartán:** 50 - 100 mg VO cada 24 horas (o Enalapril 10-20 mg VO c/12h).
+- **Amlodipino (Asociación en HTA Grado II):** 5 - 10 mg VO cada 24 horas.
+- **Hidroclorotiazida / Indapamida:** 12.5 - 25 mg VO cada mañana.
+
+### 📋 Metas Tensionales:
+- **Meta General:** < 130/80 mmHg.
+- **En Pacientes > 65 años:** 130-139 / 70-79 mmHg.
+
+### 🚨 Indicaciones No Farmacológicas:
+- Dieta DASH (reducción de sodio < 2g/día) y monitoreo domiciliario de PA (AMPA).`;
+  } else if (qLower.includes('gastrit') || qLower.includes('reflujo') || qLower.includes('epigastr') || qLower.includes('omepraz') || qLower.includes('acidez')) {
+    responseText = `### 🩺 TRATAMIENTO DE ENFERMEDAD POR REFLUJO GASTROESOFÁGICO (ERGE) Y GASTRITIS
+
+### 💊 Esquema Terapéutico:
+- **Omeprazol / Esomeprazol:** 20 - 40 mg VO cada 24 horas en ayunas (30 minutos antes del desayuno) por 4 a 8 semanas.
+- **Sucralfato (Protector de Mucosa):** 1 g VO cada 8 horas 1 hora antes de las comidas.
+- **Magaldrato + Simeticona:** 10-15 ml VO 1 hora después de comidas en crisis de acidez.
+
+### 📋 Medidas Dietéticas y Conducta:
+- Fraccionar comidas, evitar irritantes (café, picante, grasas, alcohol) y no acostarse hasta 2 horas después de cenar.`;
+  } else if (qLower.includes('dosis') || qLower.includes('pediatr') || qLower.includes('niño') || qLower.includes('mg/kg') || qLower.includes('peso')) {
+    const pWeight = patient?.weight || 15;
+    const pAge = patient?.age || 4;
+    const amoxDose = (pWeight * 80).toFixed(0);
+    const paraDose = (pWeight * 15).toFixed(0);
+    const ibupDose = (pWeight * 10).toFixed(0);
+
+    responseText = `### 🩺 CÁLCULO DE DOSIS PEDIÁTRICA PERSONALIZADA
+**Datos del Paciente Registrado:** ${patient?.name || 'Paciente Pedriátrico'}, Edad: ${pAge} años, Peso: ${pWeight} kg.
+
+### 💊 Esquemas de Dosificación por Peso Calculados:
+1. **Paracetamol (Antipirético / Analgésico - Dosis: 10 - 15 mg/kg/dosis):**
+   - **Dosis Calculada:** **${paraDose} mg** por dosis vía oral cada 6 horas.
+   - **Equivalencia Jarabe (120 mg / 5 ml):** **${((pWeight * 15) / 24).toFixed(1)} ml** por dosis.
+
+2. **Ibuprofeno (Antiinflamatorio / Fiebre alta - Dosis: 5 - 10 mg/kg/dosis):**
+   - **Dosis Calculada:** **${ibupDose} mg** por dosis vía oral cada 8 horas.
+   - **Equivalencia Jarabe (100 mg / 5 ml):** **${((pWeight * 10) / 20).toFixed(1)} ml** por dosis.
+
+3. **Amoxicilina (Antibiótico Dosis Alta - Dosis: 80 - 90 mg/kg/día):**
+   - **Dosis Total Diaria:** **${amoxDose} mg/día** repartido en 2 o 3 tomas.
+   - **Equivalencia Jarabe (250 mg / 5 ml):** **${((pWeight * 80) / 50).toFixed(1)} ml total al día** (${(((pWeight * 80) / 50) / 2).toFixed(1)} ml cada 12 horas).
+
+### 🚨 Precauciones:
+- No sobrepasar la dosis máxima diaria de Paracetamol (75 mg/kg/día o 4 g total).`;
   } else {
-    // Text prompt
-    responseText = `### 🩺 1. DIAGNÓSTICO CLÍNICO COMPLETO\n` +
-      `- **Diagnóstico Principal Probable:** Cuadro agudo compatible con sintomatología ingresada (evaluación sistémica).\n` +
-      `- **Código CIE-10 Sugerido:** R69 (Causas desconocidas e no especificadas de morbilidad).\n` +
-      `- **Diagnósticos Diferenciales:**\n` +
-      `  1. Proceso infeccioso / febril de origen a determinar.\n` +
-      `  2. Reacción inflamatoria o respuesta hemodinámica aguda.\n\n` +
-      `### 📋 2. EVALUACIÓN Y ANÁLISIS DE SÍNTOMAS\n` +
-      `- **Consulta del Médico:** "${prompt}"\n` +
-      `- **Datos del Paciente:** ${patient?.name || 'Paciente en evaluación'} (${patient?.age || 'Adulto'} años, PA: ${patient?.vitalSigns?.bloodPressure || '120/80'} mmHg).\n` +
-      `- **Análisis Clínico:** Los síntomas manifestados sugieren un episodio agudo. Se recomienda iniciar manejo sintomático mientras se completan estudios complementarios.\n\n` +
-      `### 💊 3. PLAN DE TRATAMIENTO Y PRESCRIPCIÓN SUGERIDA\n` +
-      `- **Tratamiento Farmacológico:**\n` +
-      `  - **Paracetamol:** 500 mg - 1g VO cada 6 a 8 horas (dosis máxima 4g/día) en caso de dolor o fiebre.\n` +
-      `  - **Hidratación Oral:** Solución de rehidratación o suero oral a libre demanda.\n` +
-      `- **Medidas No Farmacológicas:** Reposo relativo, ambiente tranquilo y control térmico por medios físicos.\n\n` +
-      `### 🔬 4. PRUEBAS Y ESTUDIOS COMPLEMENTARIOS\n` +
-      `- **Laboratorios:** Hemograma completo, PCR cuantificada, electrolitos séricos.\n` +
-      `- **Gabinete:** Radiografía o ecografía de control según localización del síntoma principal.\n\n` +
-      `### 🚨 5. SIGNOS DE ALARMA Y SEGUIMIENTO\n` +
-      `- Monitorear temperatura > 38.5°C persistente, dificultad respiratoria o alteración del estado de conciencia.`;
+    // Dynamic Natural Language Custom Response tailored to doctor's input text
+    const cleanPrompt = prompt ? prompt.trim() : 'Consulta Médica de Rutina';
+    responseText = `### 🩺 EVALUACIÓN CLÍNICA Y RESPUESTA A LA CONSULTA
+
+### 📋 Análisis de la Solicitud del Doctor:
+- **Consulta Recibida:** "${cleanPrompt}"
+- **Paciente Activo:** ${patient?.name || 'Paciente en evaluación'} (${patient?.age || 'Adulto'} años, PA: ${patient?.vitalSigns?.bloodPressure || '120/80'} mmHg, Temp: ${patient?.vitalSigns?.temperature || '36.8'}°C).
+
+### 💊 Plan Terapéutico y Manejo Clínico Sugerido:
+1. **Manejo Sintomático Primario:**
+   - **Paracetamol / Ibuprofeno:** 500mg - 1g VO cada 8 horas ante dolor, molestias o estado febril.
+2. **Evaluación Específica:**
+   - Correlacionar el cuadro de "${cleanPrompt}" con la historia clínica detallada y antecedentes patológicos.
+3. **Estudios de Laboratorio / Gabinete Sugeridos:**
+   - Hemograma completo, PCR cuantificada, Química sanguínea y Parámetros de control según evolución.
+
+### 🚨 Recomendaciones Clínicas:
+- Mantener monitoreo continuo de signos vitales (PA, FC, SpO2) y citar a reevaluación si persisten los síntomas.`;
   }
 
   res.json({

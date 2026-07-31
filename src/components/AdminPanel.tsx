@@ -296,14 +296,14 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
 
     let existingLic = licensesList.find(l => normK(l.key) === normOrigK);
     const updatedLic: License = {
-      key: normK(key),
+      key: key,
       doctorName: docName,
       username: cédula,
       password,
       purchaseDate: existingLic?.purchaseDate || new Date().toISOString().split('T')[0],
       status: editStatus as any,
       maxActivations: existingLic?.maxActivations || 1,
-      activatedDeviceId: editDeviceId,
+      activatedDeviceId: editDeviceId || null,
       monthlyFee: existingLic?.monthlyFee || 70,
       paymentScheme: existingLic?.paymentScheme || 'Quincenal y Fin de Mes ($35 / $35)',
       firstHalfPaymentStatus: existingLic?.firstHalfPaymentStatus || 'Pagado',

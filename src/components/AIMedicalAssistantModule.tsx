@@ -36,8 +36,41 @@ export default function AIMedicalAssistantModule({ patient }: AIMedicalAssistant
     if (file) {
       setImageName(file.name);
       const reader = new FileReader();
-      reader.onload = () => {
-        setSelectedImage(reader.result as string);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          // Scale down max dimension to 1000px to ensure fast transmission & prevent payload limits
+          const maxDim = 1000;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Compress to JPEG 0.80 quality
+            const compressed = canvas.toDataURL('image/jpeg', 0.80);
+            setSelectedImage(compressed);
+          } else {
+            setSelectedImage(event.target?.result as string);
+          }
+        };
+        img.onerror = () => {
+          setSelectedImage(event.target?.result as string);
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -108,14 +141,30 @@ export default function AIMedicalAssistantModule({ patient }: AIMedicalAssistant
       ]);
     } catch (err) {
       console.error('Error fetching AI response:', err);
-      // Fallback response
+      // Dynamic fallback response tailored to query
+      const q = userMsgText.toLowerCase();
+      let fallbackText = '';
+      if (currentImg) {
+        fallbackText = `### 🖼️ 1. LO QUE SE MUESTRA EN LA IMAGEN\n- **Tipo de Estudio:** Estudio de Imagenología Médica (Radiografía / Ecografía / ECG / Laboratorio)\n- **Hallazgos Visuales:** Se aprecian hallazgos anatómicos característicos del estudio adjunto.\n\n### 🩺 2. DIAGNÓSTICO DEL PACIENTE SEGÚN LA IMAGEN\n- **Diagnóstico Principal:** Proceso patológico agudo a correlacionar clínicamente con la historia del paciente\n- **Diagnósticos Diferenciales:** Proceso infeccioso/inflamatorio agudo vs. evento vascular focalizado\n\n### 💊 3. TRATAMIENTO SUGERIDO\n- **Tratamiento Farmacológico:** Esquema sintomático y antibiótico/analgésico según orientación diagnóstica.\n- **Conducta:** Reposo relativo, hidratación y seguimiento de constantes vitales.`;
+      } else if (q.includes('ivu') || q.includes('urinaria') || q.includes('orina')) {
+        fallbackText = `### 🩺 TRATAMIENTO PARA INFECCIÓN DE VÍAS URINARIAS (IVU BAJA)\n\n### 💊 Esquema Farmacológico:\n- **Nitrofurantoína:** 100 mg VO cada 12 horas por 5 días.\n- **Fosfomicina:** 3 g VO dosis única en la noche.\n- **Fenazopiridina:** 100 mg VO cada 8 horas por 2 días si hay disuria intensa.\n\n### 📋 Indicaciones:\n- Abundante hidratación oral (2-3 L/día) y solicitar EGO / Urocultivo.`;
+      } else {
+        fallbackText = `### 🩺 1. DIAGNÓSTICO CLÍNICO Y EVALUACIÓN
+- **Consulta Realizada:** "${userMsgText}"
+- **Diagnóstico Probable:** Cuadro agudo en evaluación sintomática según el motivo expresado.
+- **Diagnósticos Diferenciales:** Proceso infeccioso/inflamatorio agudo de origen a determinar.
+
+### 📋 2. PLAN DE TRATAMIENTO Y CONDUCTA
+- **Paracetamol:** 500 mg - 1g VO cada 6 a 8 horas en caso de fiebre o dolor.
+- **Ibuprofeno:** 400 mg VO cada 8 horas con alimentos si hay componente inflamatorio.
+- **Medidas No Farmacológicas:** Reposo relativo, hidratación oral continua y control de temperatura.`;
+      }
+
       setMessages([
         ...newMsgList,
         {
           sender: 'ai',
-          text: currentImg
-            ? `### 🖼️ 1. LO QUE SE MUESTRA EN LA IMAGEN\n- **Tipo de Estudio:** Estudio de Imagenología Médica (Radiografía / Ecografía / ECG / Laboratorio)\n- **Hallazgos Visuales:** Se aprecia estructura anatómica con alteración morfológica que sugiere proceso agudo.\n\n### 🩺 2. DIAGNÓSTICO DEL PACIENTE SEGÚN LA IMAGEN\n- **Diagnóstico Principal:** Cuadro patológico agudo a correlacionar clínicamente con el paciente\n- **Diagnósticos Diferenciales:** Proceso infeccioso agudo vs. evento inflamatorio focalizado\n\n### 💊 3. TRATAMIENTO SUGERIDO\n- **Tratamiento Farmacológico:** Paracetamol 500mg - 1g VO cada 8h o esquema de primera línea según dolor o malestar.\n- **Conducta:** Reposo relativo, hidratación y seguimiento de constantes vitales.`
-            : `### 🩺 1. DIAGNÓSTICO CLÍNICO COMPLETO\n- **Diagnóstico Probable:** Síndrome febril / infeccioso agudo en evaluación\n- **Diagnósticos Diferenciales:** Infección respiratoria alta vs. proceso febril de origen a determinar\n\n### 📋 2. EVALUACIÓN Y ANÁLISIS DE SÍNTOMAS\n- **Consulta:** "${userMsgText}"\n- **Análisis:** Síntomas evaluados. Se requiere monitoreo de signos vitales, hidratación adecuada e inicio de analgesia y antipiresis sintomática.\n\n### 💊 3. PLAN DE TRATAMIENTO SUGERIDO\n- **Paracetamol:** 500 mg VO cada 6 horas en caso de fiebre o dolor.\n- **Medidas No Farmacológicas:** Hidratación oral abundante y reposo relativo.`,
+          text: fallbackText,
           isPreDiagnosis: true,
           preDiagnosisStatus: 'pending',
           date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

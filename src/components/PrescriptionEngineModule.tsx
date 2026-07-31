@@ -53,16 +53,53 @@ export default function PrescriptionEngineModule({
     if (!matchesSearch) return false;
 
     if (selectedCategoryFilter === 'psicotropicos') {
-      return (m?.category || '').toLowerCase().includes('psicotrópico') || (m?.category || '').toLowerCase().includes('psicotropico') || ['clonazepam', 'alprazolam', 'quetiapina', 'sertralina', 'haloperidol', 'diazepam'].some(k => (m?.name || '').toLowerCase().includes(k) || (m?.activeIngredient || '').toLowerCase().includes(k));
+      const cat = (m?.category || '').toLowerCase();
+      const name = (m?.name || '').toLowerCase();
+      const ing = (m?.activeIngredient || '').toLowerCase();
+      return (
+        cat.includes('psicotr') ||
+        cat.includes('psiquiátr') ||
+        cat.includes('ansiol') ||
+        cat.includes('antipsic') ||
+        cat.includes('antidepr') ||
+        cat.includes('estabilizador') ||
+        cat.includes('benzodiacep') ||
+        ['clonazepam', 'alprazolam', 'quetiapina', 'sertralina', 'haloperidol', 'diazepam', 'midazolam', 'lorazepam', 'zolpidem', 'bromazepam', 'olanzapina', 'risperidona', 'clozapina', 'aripiprazol', 'levomepromazina', 'clorpromazina', 'fluoxetina', 'escitalopram', 'paroxetina', 'venlafaxina', 'duloxetina', 'amitriptilina', 'mirtazapina', 'bupropión', 'bupropion', 'litio', 'valproico', 'valproato', 'carbamazepina', 'lamotrigina', 'metilfenidato', 'modafinilo'].some(k => name.includes(k) || ing.includes(k))
+      );
     }
     if (selectedCategoryFilter === 'vasoactivos') {
-      return (m?.category || '').toLowerCase().includes('vasoactivo') || (m?.category || '').toLowerCase().includes('inotrópico') || (m?.category || '').toLowerCase().includes('inotropico') || ['noradrenalina', 'adrenalina', 'dopamina', 'dobutamina', 'vasopresina', 'milrinona'].some(k => (m?.name || '').toLowerCase().includes(k) || (m?.activeIngredient || '').toLowerCase().includes(k));
+      const cat = (m?.category || '').toLowerCase();
+      const name = (m?.name || '').toLowerCase();
+      const ing = (m?.activeIngredient || '').toLowerCase();
+      return (
+        cat.includes('vasoactiv') ||
+        cat.includes('inotróp') ||
+        cat.includes('inotrop') ||
+        cat.includes('vasopres') ||
+        cat.includes('inodilat') ||
+        ['noradrenalina', 'adrenalina', 'dopamina', 'dobutamina', 'vasopresina', 'milrinona', 'fenilefrina', 'isoproterenol', 'levosimendán', 'levosimendan', 'efedrina', 'angiotensina'].some(k => name.includes(k) || ing.includes(k))
+      );
     }
     if (selectedCategoryFilter === 'antihipertensivos_iv') {
-      return (m?.category || '').toLowerCase().includes('antihipertensivo') || ['labetalol', 'nicardipino', 'nicardipina', 'nitroprusiato', 'nitroglicerina', 'hidralazina', 'esmolol'].some(k => (m?.name || '').toLowerCase().includes(k) || (m?.activeIngredient || '').toLowerCase().includes(k));
+      const cat = (m?.category || '').toLowerCase();
+      const name = (m?.name || '').toLowerCase();
+      const ing = (m?.activeIngredient || '').toLowerCase();
+      return (
+        cat.includes('antihipertensiv') ||
+        cat.includes('hipertensiv') ||
+        ['labetalol', 'nicardipino', 'nicardipina', 'nitroprusiato', 'nitroglicerina', 'hidralazina', 'esmolol', 'enalaprilat', 'enalaprilato', 'clevidipina', 'clemidipina', 'fentolamina', 'urapidil', 'diltiazem'].some(k => name.includes(k) || ing.includes(k))
+      );
     }
     if (selectedCategoryFilter === 'antiarritmicos') {
-      return (m?.category || '').toLowerCase().includes('antiarreítmico') || (m?.category || '').toLowerCase().includes('antiarritmico') || ['amiodarona', 'adenosina', 'lidocaína', 'lidocaina', 'propafenona', 'verapamilo'].some(k => (m?.name || '').toLowerCase().includes(k) || (m?.activeIngredient || '').toLowerCase().includes(k));
+      const cat = (m?.category || '').toLowerCase();
+      const name = (m?.name || '').toLowerCase();
+      const ing = (m?.activeIngredient || '').toLowerCase();
+      return (
+        cat.includes('antiarr') ||
+        cat.includes('antiarre') ||
+        cat.includes('arritm') ||
+        ['amiodarona', 'adenosina', 'lidocaína', 'lidocaina', 'propafenona', 'verapamilo', 'flecainida', 'procainamida', 'metoprolol', 'sotalol', 'ibutilida', 'digoxina', 'sulfato de magnesio', 'atropina'].some(k => name.includes(k) || ing.includes(k))
+      );
     }
 
     return true;

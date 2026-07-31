@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Eye, EyeOff, ShieldCheck, HeartPulse, Sparkles, Smartphone, Award } from 'lucide-react';
+import { Key, Eye, EyeOff, ShieldCheck, HeartPulse, Sparkles, Smartphone, Award, CheckCircle } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AdminPanel, { DEFAULT_SEED_LICENSES } from './components/AdminPanel';
 import DosiaLogo from './components/DosiaLogo';
@@ -50,6 +50,58 @@ export default function App() {
   // Create Icon / PWA Install modal state
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallModal, setShowInstallModal] = useState(false);
+
+  // Auto-logout after 10 minutes of inactivity
+  useEffect(() => {
+    if (currentView !== 'dashboard' || !activeDoctor) return;
+
+    const INACTIVITY_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
+    let timeoutId: NodeJS.Timeout;
+    let lastActivityTime = Date.now();
+
+    const checkInactivity = () => {
+      const now = Date.now();
+      if (now - lastActivityTime >= INACTIVITY_LIMIT_MS) {
+        console.log('Sesión cerrada por 10 minutos de inactividad.');
+        handleLogout();
+      } else {
+        const remaining = INACTIVITY_LIMIT_MS - (now - lastActivityTime);
+        timeoutId = setTimeout(checkInactivity, remaining);
+      }
+    };
+
+    const handleUserActivity = () => {
+      lastActivityTime = Date.now();
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(checkInactivity, INACTIVITY_LIMIT_MS);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        if (now - lastActivityTime >= INACTIVITY_LIMIT_MS) {
+          handleLogout();
+        }
+      }
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleUserActivity, { passive: true });
+    });
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    timeoutId = setTimeout(checkInactivity, INACTIVITY_LIMIT_MS);
+
+    return () => {
+      clearTimeout(timeoutId);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleUserActivity);
+      });
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentView, activeDoctor]);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -194,9 +246,12 @@ export default function App() {
         saveCloudLicense(cloudLic).catch(err => console.error('Error al guardar licencia en nube:', err));
 
         localStorage.setItem('dosia_activated_license_key', cloudLic.key);
-        setLicenseSuccess('');
-        setLicenseActivated(true);
-        setCurrentView('login');
+        setLicenseSuccess('LICENCIA VERIFICADA Y VINCULADA EXITOSAMENTE');
+        setTimeout(() => {
+          setLicenseSuccess('');
+          setLicenseActivated(true);
+          setCurrentView('login');
+        }, 3000);
         return;
       }
 
@@ -218,9 +273,12 @@ export default function App() {
 
         if (res.ok && data.success) {
           localStorage.setItem('dosia_activated_license_key', keyToActivate);
-          setLicenseSuccess('');
-          setLicenseActivated(true);
-          setCurrentView('login');
+          setLicenseSuccess('LICENCIA VERIFICADA Y VINCULADA EXITOSAMENTE');
+          setTimeout(() => {
+            setLicenseSuccess('');
+            setLicenseActivated(true);
+            setCurrentView('login');
+          }, 3000);
           return;
         }
 
@@ -486,8 +544,9 @@ export default function App() {
                 )}
 
                 {licenseSuccess && (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl leading-normal text-left">
-                    {licenseSuccess}
+                  <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold rounded-xl leading-normal text-left flex items-center gap-2.5 shadow-lg shadow-emerald-500/10">
+                    <CheckCircle className="w-5 h-5 shrink-0 text-emerald-400 animate-bounce" />
+                    <span>{licenseSuccess}</span>
                   </div>
                 )}
 
@@ -505,7 +564,8 @@ export default function App() {
                       autoComplete="off"
                       autoCorrect="off"
                       spellCheck={false}
-                      className="bg-brand-navy-light border border-slate-700 focus:border-brand-teal focus:outline-none rounded-xl pl-11 pr-4 py-3.5 text-sm w-full font-mono text-brand-teal-pastel tracking-wider placeholder:tracking-normal"
+                      disabled={isSubmittingLicense || !!licenseSuccess}
+                      className="bg-brand-navy-light border border-slate-700 focus:border-brand-teal focus:outline-none rounded-xl pl-11 pr-4 py-3.5 text-sm w-full font-mono text-brand-teal-pastel tracking-wider placeholder:tracking-normal disabled:opacity-50"
                     />
                     <Key className="w-5 h-5 text-slate-500 absolute left-3.5 top-3.5" />
                   </div>
@@ -516,13 +576,18 @@ export default function App() {
 
                 <button
                   type="submit"
-                  disabled={isSubmittingLicense}
-                  className="w-full bg-brand-teal hover:bg-brand-teal-pastel disabled:opacity-50 text-slate-900 font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-brand-teal/20 transition-all text-xs flex items-center justify-center gap-2 mt-4 cursor-pointer"
+                  disabled={isSubmittingLicense || !!licenseSuccess}
+                  className="w-full bg-brand-teal hover:bg-brand-teal-pastel disabled:opacity-75 text-slate-900 font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-brand-teal/20 transition-all text-xs flex items-center justify-center gap-2 mt-4 cursor-pointer"
                 >
                   {isSubmittingLicense ? (
                     <>
                       <Sparkles className="w-4 h-4 animate-spin" />
                       <span>Verificando...</span>
+                    </>
+                  ) : licenseSuccess ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-slate-900" />
+                      <span>¡Licencia Vinculada Exitosamente!</span>
                     </>
                   ) : (
                     <>
