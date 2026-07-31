@@ -453,45 +453,45 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-fade-in">
-      <div className="bg-brand-navy-light border border-slate-700/80 rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl text-slate-100 overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-fade-in">
+      <div className="bg-brand-navy-light border border-slate-700/80 rounded-2xl sm:rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl text-slate-100 overflow-hidden relative my-auto">
         
         {/* Header Bar - Green Gradient with White EDITAR Button */}
-        <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-brand-navy border-b border-emerald-500/40 p-4 sm:p-5 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl text-emerald-400 shadow-lg shadow-emerald-950/50">
-              <Pill className="w-6 h-6 animate-pulse" />
+        <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-brand-navy border-b border-emerald-500/40 p-3 sm:p-5 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 bg-emerald-500/20 border border-emerald-500/40 rounded-xl sm:rounded-2xl text-emerald-400 shadow-lg shadow-emerald-950/50 shrink-0">
+              <Pill className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h2 className="text-sm sm:text-lg font-bold text-white tracking-tight flex items-center gap-1.5 truncate">
                   Esquema de Tratamiento Clínico
-                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] uppercase font-mono px-2 py-0.5 rounded-full font-bold">
-                    {patientData.category}
-                  </span>
                 </h2>
+                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] sm:text-[10px] uppercase font-mono px-2 py-0.5 rounded-full font-bold shrink-0">
+                  {patientData.category}
+                </span>
               </div>
-              <p className="text-xs text-slate-300 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5 truncate">
                 Dosis ajustadas para <strong className="text-emerald-300 font-mono">{weight} kg</strong> y constantes vitales.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             {/* White EDITAR Button */}
             <button
               type="button"
               onClick={() => setIsEditing(!isEditing)}
-              className="bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+              className="bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
               title="Permite modificar medicamentos, dosis y guía de tratamiento"
             >
-              <Edit3 className="w-4 h-4 text-slate-800" />
+              <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-800" />
               <span>{isEditing ? 'Vista Previa' : 'EDITAR'}</span>
             </button>
 
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
+              className="p-1.5 sm:p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
               title="Cerrar ventana"
             >
               <X className="w-5 h-5" />
@@ -500,89 +500,97 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
         </div>
 
         {/* Patient Clinical Info Bar */}
-        <div className="bg-slate-900/90 border-b border-slate-800 p-3 sm:p-4 text-xs">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
-            <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
-              <span className="text-slate-500 block uppercase text-[9px] font-sans">Paciente</span>
+        <div className="bg-slate-900/90 border-b border-slate-800 p-2.5 sm:p-4 text-xs shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-mono">
+            <div className="bg-slate-950 p-2 rounded-xl border border-slate-800/80">
+              <span className="text-slate-500 block uppercase text-[8px] sm:text-[9px] font-sans">Paciente</span>
               <span className="text-white font-bold truncate block">{patientData.name}</span>
             </div>
-            <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
-              <span className="text-slate-500 block uppercase text-[9px] font-sans">Edad / Categoría</span>
-              <span className="text-amber-300 font-bold">{patientData.age} años ({patientData.category})</span>
+            <div className="bg-slate-950 p-2 rounded-xl border border-slate-800/80">
+              <span className="text-slate-500 block uppercase text-[8px] sm:text-[9px] font-sans">Edad / Categoría</span>
+              <span className="text-amber-300 font-bold truncate block">{patientData.age} años ({patientData.category})</span>
             </div>
-            <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
-              <span className="text-slate-500 block uppercase text-[9px] font-sans">Peso / Talla / IMC</span>
-              <span className="text-brand-teal font-bold">{weight} kg | {patientData.height} cm ({bmi})</span>
+            <div className="bg-slate-950 p-2 rounded-xl border border-slate-800/80">
+              <span className="text-slate-500 block uppercase text-[8px] sm:text-[9px] font-sans">Peso / Talla / IMC</span>
+              <span className="text-brand-teal font-bold truncate block">{weight} kg | {patientData.height} cm ({bmi})</span>
             </div>
-            <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
-              <span className="text-slate-500 block uppercase text-[9px] font-sans">Grupo S. / Estado</span>
-              <span className="text-rose-300 font-bold">{patientData.bloodGroup} | {patientData.status}</span>
+            <div className="bg-slate-950 p-2 rounded-xl border border-slate-800/80">
+              <span className="text-slate-500 block uppercase text-[8px] sm:text-[9px] font-sans">Grupo S. / Estado</span>
+              <span className="text-rose-300 font-bold truncate block">{patientData.bloodGroup} | {patientData.status}</span>
             </div>
           </div>
 
           {/* Clinical Alerts Strip if any */}
           {(temp >= 37.8 || spo2 < 95 || glasgow < 15 || glycemia < 70 || allergies.length > 0) && (
-            <div className="mt-2.5 bg-rose-950/40 border border-rose-500/40 p-2.5 rounded-xl text-[11px] flex flex-wrap items-center gap-2 text-rose-200">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span className="font-bold">Hallazgos y Alertas Relevantes:</span>
-              {temp >= 37.8 && <span className="bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded border border-rose-500/40">🔥 Fiebre ({temp}°C)</span>}
-              {spo2 < 95 && <span className="bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded border border-rose-500/40">🫁 Hipoxemia ({spo2}%)</span>}
-              {glasgow < 15 && <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/40">🧠 Glasgow ({glasgow}/15)</span>}
-              {glycemia < 70 && <span className="bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded border border-rose-500/40">🩸 Hipoglucemia ({glycemia} mg/dL)</span>}
-              {allergies.length > 0 && <span className="bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded border border-rose-500/40">🔴 Alergias: {allergies.join(', ')}</span>}
+            <div className="mt-2 bg-rose-950/40 border border-rose-500/40 p-2 rounded-xl text-[10px] sm:text-[11px] flex flex-wrap items-center gap-1.5 text-rose-200">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <span className="font-bold">Alertas:</span>
+              {temp >= 37.8 && <span className="bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/40">🔥 Fiebre ({temp}°C)</span>}
+              {spo2 < 95 && <span className="bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/40">🫁 Hipoxemia ({spo2}%)</span>}
+              {glasgow < 15 && <span className="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/40">🧠 Glasgow ({glasgow}/15)</span>}
+              {glycemia < 70 && <span className="bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/40">🩸 Hipoglucemia ({glycemia} mg/dL)</span>}
+              {allergies.length > 0 && <span className="bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/40">🔴 Alergias: {allergies.join(', ')}</span>}
             </div>
           )}
         </div>
 
-        {/* Tab Selector */}
-        <div className="flex border-b border-slate-800 bg-slate-900/60 text-xs font-bold px-4 gap-1 pt-2">
+        {/* Tab Selector - Horizontally Scrollable without wrap clutter */}
+        <div className="flex items-center overflow-x-auto max-w-full border-b border-slate-800 bg-slate-900/80 text-xs font-bold px-2 sm:px-4 gap-1 pt-2 shrink-0">
           <button
+            type="button"
             onClick={() => setActiveTab('farmaco')}
-            className={`px-4 py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'farmaco'
                 ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
                 : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
-            <Pill className="w-4 h-4" /> 💊 Medicamentos ({medications.length})
+            <Pill className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+            <span>💊 Medicamentos ({medications.length})</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('conducta')}
-            className={`px-4 py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'conducta'
                 ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
                 : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
-            <Stethoscope className="w-4 h-4" /> 📋 Conducta Médica
+            <Stethoscope className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+            <span>📋 Conducta Médica</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('pruebas')}
-            className={`px-4 py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'pruebas'
                 ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
                 : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
-            <Activity className="w-4 h-4" /> 🔬 Pruebas Sugeridas
+            <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+            <span>🔬 Pruebas Sugeridas</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('alarmas')}
-            className={`px-4 py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'alarmas'
                 ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
                 : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
-            <ShieldAlert className="w-4 h-4" /> 🚨 Criterios de Alarma
+            <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+            <span>🚨 Criterios de Alarma</span>
           </button>
         </div>
 
         {/* Modal Main Content Area */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 max-h-[50vh] scrollbar-thin scrollbar-thumb-slate-700">
+        <div className="p-3 sm:p-5 overflow-y-auto flex-1 space-y-3 min-h-[220px]">
           
           {/* TAB 1: FARMACOS Y DOSIS */}
           {activeTab === 'farmaco' && (
@@ -606,7 +614,7 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
                 {medications.map((med, index) => (
                   <div
                     key={index}
-                    className="bg-slate-900/90 border border-slate-800 hover:border-emerald-500/40 p-4 rounded-2xl transition-all space-y-2 shadow-sm relative"
+                    className="bg-slate-900/90 border border-slate-800 hover:border-emerald-500/40 p-3.5 sm:p-4 rounded-2xl transition-all space-y-2 shadow-sm relative text-left"
                   >
                     {isEditing ? (
                       /* EDITABLE MEDICATION ROW */
@@ -691,19 +699,19 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
                       /* VIEW ONLY MEDICATION CARD */
                       <>
                         <div className="flex items-start justify-between gap-2 border-b border-slate-800/80 pb-2">
-                          <div>
+                          <div className="min-w-0">
                             <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                              <span className="bg-emerald-500/20 text-emerald-300 font-mono text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold">
+                              <span className="bg-emerald-500/20 text-emerald-300 font-mono text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold shrink-0">
                                 {index + 1}
                               </span>
-                              {med.name}
+                              <span className="truncate">{med.name}</span>
                             </h4>
-                            <p className="text-xs text-emerald-400 font-medium mt-0.5">
+                            <p className="text-xs text-emerald-400 font-medium mt-0.5 leading-snug">
                               🎯 {med.indication}
                             </p>
                           </div>
 
-                          <span className="bg-slate-950 text-slate-300 border border-slate-700 text-[10px] font-mono px-2 py-1 rounded-lg shrink-0">
+                          <span className="bg-slate-950 text-slate-300 border border-slate-700 text-[10px] font-mono px-2 py-1 rounded-lg shrink-0 whitespace-nowrap">
                             {med.route}
                           </span>
                         </div>
@@ -742,8 +750,8 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
 
           {/* TAB 2: CONDUCTA MEDICA */}
           {activeTab === 'conducta' && (
-            <div className="space-y-3 text-xs leading-relaxed">
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+            <div className="space-y-3 text-xs leading-relaxed text-left">
+              <div className="bg-slate-900 border border-slate-800 p-3.5 sm:p-4 rounded-2xl space-y-3">
                 <h4 className="font-bold text-white text-sm flex items-center gap-2 border-b border-slate-800 pb-2">
                   <Stethoscope className="w-4 h-4 text-emerald-400" /> Guía de Actuación Médica Inmediata
                 </h4>
@@ -766,8 +774,8 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
 
           {/* TAB 3: PRUEBAS SUGERIDAS */}
           {activeTab === 'pruebas' && (
-            <div className="space-y-3 text-xs">
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+            <div className="space-y-3 text-xs text-left">
+              <div className="bg-slate-900 border border-slate-800 p-3.5 sm:p-4 rounded-2xl space-y-3">
                 <h4 className="font-bold text-white text-sm flex items-center gap-2 border-b border-slate-800 pb-2">
                   <Activity className="w-4 h-4 text-emerald-400" /> Estudios de Laboratorio e Imagenología Recomendados
                 </h4>
@@ -790,8 +798,8 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
 
           {/* TAB 4: ALARMAS */}
           {activeTab === 'alarmas' && (
-            <div className="space-y-3 text-xs">
-              <div className="bg-rose-950/30 border border-rose-500/40 p-4 rounded-2xl space-y-3">
+            <div className="space-y-3 text-xs text-left">
+              <div className="bg-rose-950/30 border border-rose-500/40 p-3.5 sm:p-4 rounded-2xl space-y-3">
                 <h4 className="font-bold text-rose-300 text-sm flex items-center gap-2 border-b border-rose-500/30 pb-2">
                   <ShieldAlert className="w-4 h-4 text-rose-400" /> Signos de Alarma y Criterios de Urgencia Inmediata
                 </h4>
@@ -816,19 +824,19 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
 
         {/* Toast feedback for saving to EMR */}
         {savedToEmr && (
-          <div className="bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 px-4 py-2 mx-4 text-xs rounded-xl flex items-center justify-center gap-2 animate-fade-in font-bold">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            ¡Tratamiento guardado exitosamente en el Historial Clínico del paciente!
+          <div className="bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 px-4 py-2 mx-4 my-1 text-xs rounded-xl flex items-center justify-center gap-2 animate-fade-in font-bold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>¡Tratamiento guardado exitosamente en el Historial Clínico!</span>
           </div>
         )}
 
         {/* Footer Actions Bar - Complete Actions Suite */}
-        <div className="bg-slate-900/90 border-t border-slate-800 p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+        <div className="bg-slate-900/95 border-t border-slate-800 p-2.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs shrink-0">
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             {/* COPY */}
             <button
               onClick={handleCopy}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs"
               title="Copiar texto plano al portapapeles"
             >
               {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -838,7 +846,7 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
             {/* GREEN WHATSAPP BUTTON */}
             <button
               onClick={handleShareWhatsApp}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl border border-emerald-400/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/40"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl border border-emerald-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
               title="Compartir esquema de tratamiento por WhatsApp"
             >
               <Share2 className="w-4 h-4 text-emerald-100" />
@@ -848,17 +856,17 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
             {/* BLUE DESCARGAR PDF BUTTON */}
             <button
               onClick={handleDownloadPDF}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3.5 py-2 rounded-xl border border-blue-400/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-950/40"
+              className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-2 rounded-xl border border-blue-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
               title="Generar y descargar documento PDF"
             >
               <Download className="w-4 h-4 text-blue-100" />
-              <span>Descargar PDF</span>
+              <span>PDF</span>
             </button>
 
             {/* PRINT BUTTON */}
             <button
               onClick={handlePrint}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs"
               title="Imprimir prescripción"
             >
               <Printer className="w-4 h-4" />
@@ -868,17 +876,17 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
             {/* SAVE TO EMR BUTTON */}
             <button
               onClick={handleSaveToEMR}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-2 rounded-xl border border-indigo-400/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-indigo-950/40"
+              className="col-span-2 xs:col-span-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-2 rounded-xl border border-indigo-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
               title="Guardar como registro en el Historial Clínico del Paciente"
             >
               <FolderPlus className="w-4 h-4 text-indigo-100" />
-              <span>{savedToEmr ? '✓ Guardado' : 'Guardar en Historial'}</span>
+              <span className="truncate">{savedToEmr ? '✓ Guardado' : 'Guardar en Historial'}</span>
             </button>
           </div>
 
           <button
             onClick={onClose}
-            className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-5 py-2 rounded-xl transition-all cursor-pointer border border-slate-700"
+            className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-5 py-2 rounded-xl transition-all cursor-pointer border border-slate-700 shrink-0 text-xs"
           >
             Cerrar
           </button>

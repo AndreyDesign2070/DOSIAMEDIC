@@ -402,7 +402,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
       </div>
 
       {/* 4. PRIMARY NAVIGATION TABS NAVBAR (GROUPED DROPDOWNS AS REQUESTED) */}
-      <div className="bg-brand-navy-light/60 border-b border-slate-800 px-3 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto max-w-full sm:flex-wrap sticky top-[49px] z-20 backdrop-blur-md">
+      <div className="bg-brand-navy-light/60 border-b border-slate-800 px-3 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto sm:overflow-visible max-w-full sm:flex-wrap sticky top-[49px] z-30 backdrop-blur-md">
         
         {/* GRUPO 1: Perfil del paciente, Consulta Clínica, Evaluación Automática */}
         {(() => {
@@ -437,8 +437,8 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
               {openGroup === 'g1' && (
                 <>
-                  <div className="fixed inset-0 z-20" onClick={() => setOpenGroup(null)} />
-                  <div className="absolute left-0 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
+                  <div className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-xs" onClick={() => setOpenGroup(null)} />
+                  <div className="fixed top-[108px] left-3 right-3 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:mt-2 w-auto sm:w-60 max-w-[calc(100vw-2rem)] rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-50 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
                     <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-900/50">
                       GRUPO 1 — Paciente & Consulta
                     </div>
@@ -506,8 +506,8 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
               {openGroup === 'g2' && (
                 <>
-                  <div className="fixed inset-0 z-20" onClick={() => setOpenGroup(null)} />
-                  <div className="absolute left-0 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
+                  <div className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-xs" onClick={() => setOpenGroup(null)} />
+                  <div className="fixed top-[108px] left-3 right-3 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:mt-2 w-auto sm:w-60 max-w-[calc(100vw-2rem)] rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-50 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
                     <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-900/50">
                       GRUPO 2 — Prescripción & Docs
                     </div>
@@ -577,8 +577,8 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
               {openGroup === 'g3' && (
                 <>
-                  <div className="fixed inset-0 z-20" onClick={() => setOpenGroup(null)} />
-                  <div className="absolute left-0 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-30 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
+                  <div className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-xs" onClick={() => setOpenGroup(null)} />
+                  <div className="fixed top-[108px] left-3 right-3 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:mt-2 w-auto sm:w-64 max-w-[calc(100vw-2rem)] rounded-2xl bg-brand-navy-light border border-slate-700 shadow-2xl z-50 overflow-hidden py-1 animate-fade-in divide-y divide-slate-800">
                     <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-900/50">
                       GRUPO 3 — Historial & Diagnóstico
                     </div>
