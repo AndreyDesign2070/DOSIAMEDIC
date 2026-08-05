@@ -213,13 +213,13 @@ export default function PrescriptionEngineModule({
   const totalDropsPerDose = totalMlPerDose * 20; // 1 ml = 20 gotas std
 
   return (
-    <div className="bg-brand-navy-light/30 border border-slate-800 rounded-3xl p-6 text-left space-y-6">
+    <div className="bg-brand-navy-light/30 border border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 text-left space-y-4 sm:space-y-6">
       
       {/* Module Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 sm:pb-4">
         <div>
-          <h3 className="text-xl font-bold font-display text-white flex items-center gap-2">
-            <Pill className="w-5 h-5 text-brand-teal" /> Motor Inteligente de Prescripción & Vademécum
+          <h3 className="text-lg sm:text-xl font-bold font-display text-white flex items-center gap-2">
+            <Pill className="w-5 h-5 text-brand-teal shrink-0" /> Motor Inteligente de Prescripción & Vademécum
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
             Validación automática de alergias, interacciones fármaco-fármaco, dosis pediátricas y ajustes de función renal/hepática.
@@ -228,11 +228,11 @@ export default function PrescriptionEngineModule({
 
         {/* Dose Adjustment Toggles Bar */}
         <div className="flex flex-wrap items-center gap-1.5 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 text-[10px] font-bold">
-          <span className="text-slate-400 px-2 uppercase font-mono">Ajustes Activos:</span>
+          <span className="text-slate-400 px-1.5 uppercase font-mono">Ajustes Activos:</span>
           <button
             type="button"
             onClick={() => setAdjRenal(!adjRenal)}
-            className={`px-2.5 py-1 rounded-xl border transition-all cursor-pointer ${
+            className={`px-2 py-1 rounded-xl border transition-all cursor-pointer ${
               adjRenal ? 'bg-purple-500/25 border-purple-400 text-purple-300' : 'bg-slate-800/50 border-slate-700/50 text-slate-500'
             }`}
           >
@@ -241,7 +241,7 @@ export default function PrescriptionEngineModule({
           <button
             type="button"
             onClick={() => setAdjHepatic(!adjHepatic)}
-            className={`px-2.5 py-1 rounded-xl border transition-all cursor-pointer ${
+            className={`px-2 py-1 rounded-xl border transition-all cursor-pointer ${
               adjHepatic ? 'bg-emerald-500/25 border-emerald-400 text-emerald-300' : 'bg-slate-800/50 border-slate-700/50 text-slate-500'
             }`}
           >
@@ -250,7 +250,7 @@ export default function PrescriptionEngineModule({
           <button
             type="button"
             onClick={() => setAdjPregnancy(!adjPregnancy)}
-            className={`px-2.5 py-1 rounded-xl border transition-all cursor-pointer ${
+            className={`px-2 py-1 rounded-xl border transition-all cursor-pointer ${
               adjPregnancy ? 'bg-yellow-500/25 border-yellow-400 text-yellow-300' : 'bg-slate-800/50 border-slate-700/50 text-slate-500'
             }`}
           >
@@ -260,7 +260,7 @@ export default function PrescriptionEngineModule({
       </div>
 
       {/* Navigation Subtabs */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800 scroll-smooth no-scrollbar">
         {[
           { id: 'prescribe', label: '📝 Generar Receta Médica', icon: FileText },
           { id: 'vademecum', label: '📖 Vademécum Clínico Completo', icon: Pill },
@@ -273,13 +273,13 @@ export default function PrescriptionEngineModule({
               key={tab.id}
               type="button"
               onClick={() => setSubTab(tab.id as any)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
                 subTab === tab.id
-                  ? 'bg-brand-teal text-slate-900 shadow-md'
+                  ? 'bg-brand-teal text-slate-900 shadow-md font-extrabold'
                   : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 shrink-0" />
               <span>{tab.label}</span>
             </button>
           );

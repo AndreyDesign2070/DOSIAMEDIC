@@ -53,7 +53,7 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
   const [copied, setCopied] = useState(false);
   const [savedToEmr, setSavedToEmr] = useState(false);
   const [activeTab, setActiveTab] = useState<'farmaco' | 'conducta' | 'pruebas' | 'alarmas'>('farmaco');
-  const [showActions, setShowActions] = useState(false);
+  const [showActions, setShowActions] = useState(true);
   
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -454,8 +454,8 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-fade-in">
-      <div className="bg-brand-navy-light border border-slate-700/80 rounded-2xl sm:rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl text-slate-100 overflow-hidden relative my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-hidden animate-fade-in">
+      <div className="bg-brand-navy-light border border-slate-700/80 rounded-2xl sm:rounded-3xl max-w-3xl w-full max-h-[94vh] sm:max-h-[90vh] flex flex-col shadow-2xl text-slate-100 overflow-hidden relative">
         
         {/* Header Bar - Green Gradient with White EDITAR Button */}
         <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-brand-navy border-b border-emerald-500/40 p-3 sm:p-5 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
@@ -558,7 +558,7 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
         </div>
 
         {/* Modal Main Content Area */}
-        <div className="p-3 sm:p-5 overflow-y-auto flex-1 space-y-3 min-h-[220px]">
+        <div className="p-3 sm:p-5 overflow-y-auto flex-1 min-h-0 space-y-3">
           
           {/* TAB 1: FARMACOS Y DOSIS */}
           {activeTab === 'farmaco' && (
@@ -798,119 +798,99 @@ export default function TreatmentModal({ isOpen, onClose, patientData, onSaveToE
           </div>
         )}
 
-        {/* Footer Actions Bar - Collapsible Action Suite */}
-        <div className="bg-slate-900/95 border-t border-slate-800 p-2.5 sm:p-4 flex flex-col space-y-2.5 shrink-0 z-10">
-          <div className="flex items-center justify-between gap-2 w-full">
-            {/* TOGGLE ARROW BUTTON FOR ACTION BUTTONS */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowActions((prev) => !prev);
-              }}
-              className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold px-3.5 py-2.5 rounded-xl border border-emerald-400/50 flex items-center gap-2 transition-all cursor-pointer shadow-md text-xs select-none"
-              title="Haz clic para mostrar u ocultar opciones de copiar, compartir, imprimir y guardar"
-            >
-              <Share2 className="w-4 h-4 text-emerald-100 shrink-0" />
-              <span>Opciones de Exportación y Guardado</span>
-              {showActions ? (
-                <ChevronUp className="w-4 h-4 text-emerald-100 shrink-0 ml-1" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-emerald-100 shrink-0 ml-1" />
-              )}
-            </button>
-
+        {/* Footer Actions Bar - Always Visible Action Suite at the Bottom */}
+        <div className="bg-slate-900/98 border-t border-slate-800 p-2 sm:p-3 shrink-0 z-10 shadow-2xl space-y-1.5">
+          
+          <div className="flex items-center justify-between gap-2 pb-0.5">
+            <span className="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1 truncate">
+              <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" /> Opciones de Exportación y Guardado:
+            </span>
             <button
               type="button"
               onClick={onClose}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-5 py-2 rounded-xl transition-all cursor-pointer border border-slate-700 shrink-0 text-xs"
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer border border-slate-700 text-[10px] sm:text-xs shrink-0"
             >
               Cerrar
             </button>
           </div>
 
-          {/* COLLAPSIBLE ACTION BUTTONS (COPIAR, WHATSAPP, PDF, IMPRIMIR, GUARDAR EN HISTORIAL) */}
-          {showActions && (
-            <div className="pt-2.5 border-t border-slate-800 animate-fade-in">
-              <div className="grid grid-cols-2 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 w-full">
-                {/* COPY */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleCopy();
-                  }}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs shadow-sm"
-                  title="Copiar texto plano al portapapeles"
-                >
-                  {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> : <Copy className="w-4 h-4 text-slate-300 shrink-0" />}
-                  <span>{copied ? '¡Copiado!' : 'Copiar'}</span>
-                </button>
+          {/* ACTION BUTTONS GRID - RESPONSIVE FOR ALL SCREEN SIZES */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2 w-full">
+            {/* 1. COPIAR */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleCopy();
+              }}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-bold px-2 py-1.5 sm:py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs shadow-sm active:scale-95 min-w-0"
+              title="Copiar texto plano al portapapeles"
+            >
+              {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <Copy className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
+              <span className="truncate">{copied ? '¡Copiado!' : 'Copiar'}</span>
+            </button>
 
-                {/* GREEN WHATSAPP BUTTON */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleShareWhatsApp();
-                  }}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl border border-emerald-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
-                  title="Compartir esquema de tratamiento por WhatsApp"
-                >
-                  <Share2 className="w-4 h-4 text-emerald-100 shrink-0" />
-                  <span>WhatsApp</span>
-                </button>
+            {/* 2. WHATSAPP - VERDE */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleShareWhatsApp();
+              }}
+              className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold px-2 py-1.5 sm:py-2 rounded-xl border border-emerald-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs active:scale-95 min-w-0"
+              title="Compartir esquema de tratamiento por WhatsApp"
+            >
+              <Share2 className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
+              <span className="truncate">WhatsApp</span>
+            </button>
 
-                {/* BLUE DESCARGAR PDF BUTTON */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleDownloadPDF();
-                  }}
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-2 rounded-xl border border-blue-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
-                  title="Generar y descargar documento PDF"
-                >
-                  <Download className="w-4 h-4 text-blue-100 shrink-0" />
-                  <span>PDF</span>
-                </button>
+            {/* 3. PDF - BLANCO */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDownloadPDF();
+              }}
+              className="bg-white hover:bg-slate-100 text-slate-900 font-extrabold px-2 py-1.5 sm:py-2 rounded-xl border border-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs active:scale-95 min-w-0"
+              title="Generar y descargar documento PDF"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-900 shrink-0" />
+              <span className="truncate">PDF</span>
+            </button>
 
-                {/* PRINT BUTTON */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handlePrint();
-                  }}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs shadow-sm"
-                  title="Imprimir prescripción"
-                >
-                  <Printer className="w-4 h-4 text-slate-300 shrink-0" />
-                  <span>Imprimir</span>
-                </button>
+            {/* 4. IMPRIMIR - TRANSPARENTE */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handlePrint();
+              }}
+              className="bg-transparent hover:bg-slate-800 text-slate-200 border border-slate-700 font-bold px-2 py-1.5 sm:py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs shadow-sm active:scale-95 min-w-0"
+              title="Imprimir prescripción"
+            >
+              <Printer className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+              <span className="truncate">Imprimir</span>
+            </button>
 
-                {/* SAVE TO EMR BUTTON */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSaveToEMR();
-                  }}
-                  className="col-span-2 xs:col-span-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-2 rounded-xl border border-indigo-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs"
-                  title="Guardar como registro en el Historial Clínico del Paciente"
-                >
-                  <FolderPlus className="w-4 h-4 text-indigo-100 shrink-0" />
-                  <span className="truncate">{savedToEmr ? '✓ Guardado' : 'Guardar en Historial'}</span>
-                </button>
-              </div>
-            </div>
-          )}
+            {/* 5. GUARDAR HISTORIAL - AZUL */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSaveToEMR();
+              }}
+              className="col-span-2 sm:col-span-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold px-2 py-1.5 sm:py-2 rounded-xl border border-blue-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md text-xs active:scale-95 min-w-0"
+              title="Guardar como registro en el Historial Clínico del Paciente"
+            >
+              <FolderPlus className="w-3.5 h-3.5 text-blue-100 shrink-0" />
+              <span className="truncate">{savedToEmr ? '✓ Guardado' : 'Guardar Historial'}</span>
+            </button>
+          </div>
         </div>
 
       </div>

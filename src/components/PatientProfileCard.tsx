@@ -173,17 +173,17 @@ export default function PatientProfileCard({
   const currentCategory = patient.patientCategory || (patient.age < 15 ? 'PEDIÁTRICO' : 'ADULTO');
 
   return (
-    <div className="bg-brand-navy-light/40 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl relative overflow-hidden text-left space-y-6">
+    <div className="bg-brand-navy-light/40 border border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-2xl relative overflow-hidden text-left space-y-4 sm:space-y-6">
       {/* Background soft ambient glow */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-brand-teal/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Top Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 sm:pb-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-mono font-bold bg-brand-dark/80 text-brand-teal border border-brand-teal/30 px-3 py-1 rounded-xl">
+          <span className="text-xs font-mono font-bold bg-brand-dark/80 text-brand-teal border border-brand-teal/30 px-2.5 py-1 rounded-xl">
             {patient.hcNumber || 'HC-2026-0001'}
           </span>
-          <span className={`text-xs font-bold px-3 py-1 rounded-xl border uppercase tracking-wider ${
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border uppercase tracking-wider ${
             patient.status === 'Hospitalizado'
               ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
               : patient.status === 'Alta'
@@ -194,15 +194,15 @@ export default function PatientProfileCard({
           </span>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
           {/* Green TRATAMIENTO Button */}
           <button
             type="button"
             onClick={() => setShowTreatmentModal(true)}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-600/30 cursor-pointer"
+            className="col-span-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 sm:px-3.5 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-600/30 cursor-pointer"
             title="Ver tratamiento médico sugerido completo para este paciente"
           >
-            <Pill className="w-4 h-4" /> TRATAMIENTO
+            <Pill className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">TRATAMIENTO</span>
           </button>
 
           {/* Prompt Request #3: Dose Calculator Button inside Patient Profile */}
@@ -212,9 +212,9 @@ export default function PatientProfileCard({
               setCalcWeight(patient.weight || 15);
               setShowDoseCalcModal(true);
             }}
-            className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-amber-500/10"
+            className="col-span-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10"
           >
-            <Calculator className="w-4 h-4 text-amber-400" /> Calculadora de Dosis
+            <Calculator className="w-3.5 h-3.5 text-amber-400 shrink-0" /> <span className="truncate">Calc. Dosis</span>
           </button>
 
           {onOpenConsultation && (

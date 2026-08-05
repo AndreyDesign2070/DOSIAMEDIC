@@ -24,7 +24,7 @@ import {
 import {
   User, Activity, Calculator, Pill, FileText, Clock, Bot, HeartPulse,
   Image as ImageIcon, BarChart3, Search, Plus, LogOut, ShieldCheck,
-  ChevronDown, Check, Sparkles, Baby, UserPlus
+  ChevronDown, Check, Sparkles, Baby, UserPlus, X, Smartphone, Monitor, ChevronRight
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -62,6 +62,10 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
   // Navigation Group Dropdowns state ('g1' | 'g2' | 'g3' | null)
   const [openGroup, setOpenGroup] = useState<'g1' | 'g2' | 'g3' | null>(null);
+
+  // Interactive Patient Dropdown Selector state
+  const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false);
+  const [patientSearchQuery, setPatientSearchQuery] = useState('');
 
   // Global Search Modal state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -101,41 +105,97 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
   // Get current active patient object (returns null if activePatientId is '')
   const activePatient = patients.find(p => p.id === activePatientId) || null;
 
+  // Helper to retrieve deleted patient IDs set for current license key
+  const getDeletedPatientIds = (normKey: string): Set<string> => {
+    try {
+      const raw = localStorage.getItem(`dosia_deleted_patients_${normKey}`);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) return new Set(arr);
+      }
+    } catch (e) {}
+    return new Set();
+  };
+
+  // Helper to merge local patients and cloud patients safely without wiping local data
+  const mergePatientsLists = (localP: Patient[], cloudP: Patient[], normKey: string): Patient[] => {
+    const deletedSet = getDeletedPatientIds(normKey);
+    const resultMap = new Map<string, Patient>();
+
+    // 1. Add local patients first
+    if (Array.isArray(localP)) {
+      for (const p of localP) {
+        if (p && p.id && !deletedSet.has(p.id)) {
+          resultMap.set(p.id, p);
+        }
+      }
+    }
+
+    // 2. Add or update cloud patients (respecting deleted set)
+    if (Array.isArray(cloudP)) {
+      for (const p of cloudP) {
+        if (p && p.id && !deletedSet.has(p.id)) {
+          if (!resultMap.has(p.id)) {
+            resultMap.set(p.id, p);
+          } else {
+            const existing = resultMap.get(p.id)!;
+            resultMap.set(p.id, { ...existing, ...p });
+          }
+        }
+      }
+    }
+
+    return Array.from(resultMap.values());
+  };
+
   // Real-time synchronization of patients with Cloud Firestore across all devices with same license
   useEffect(() => {
     const normKey = (doctor?.licenseKey || '').trim().toUpperCase();
+    if (!normKey) return;
+
     const storageKey = `dosia_patients_${normKey}`;
 
-    // 1. Try local cache first for instant render
+    // 1. Try local cache first for instant zero-latency render
+    let initialLocal: Patient[] = [];
     try {
       const storedP = localStorage.getItem(storageKey);
       if (storedP) {
         const parsed = JSON.parse(storedP);
         if (Array.isArray(parsed)) {
-          setPatients(parsed);
-          // Always keep activePatientId empty ('') on login/re-entry unless previously selected in current session
-          setActivePatientId(prev => (prev && parsed.some(p => p.id === prev) ? prev : ''));
+          initialLocal = parsed;
         }
-      } else {
-        // First time entering on a new license -> 0 patients
-        setPatients([]);
-        setActivePatientId('');
       }
     } catch (e) {
       console.error('Error reading local patients cache:', e);
-      setPatients([]);
-      setActivePatientId('');
     }
+
+    const deletedSet = getDeletedPatientIds(normKey);
+    const validInitial = initialLocal.filter(p => p && p.id && !deletedSet.has(p.id));
+    setPatients(validInitial);
 
     // 2. Subscribe to real-time Cloud Firestore updates for doctor.licenseKey
     const unsubscribe = subscribeCloudPatients(doctor.licenseKey, (cloudPatients) => {
-      const list = cloudPatients || [];
-      setPatients(list);
-      if (normKey) {
-        localStorage.setItem(storageKey, JSON.stringify(list));
-      }
-      // Keep activePatientId as '' unless doctor explicitly selected a valid patient in current session
-      setActivePatientId(prev => (prev && list.some(p => p.id === prev) ? prev : ''));
+      // Re-read current local storage to preserve any patients created locally during session
+      let currentLocal: Patient[] = [];
+      try {
+        const s = localStorage.getItem(storageKey);
+        if (s) {
+          const p = JSON.parse(s);
+          if (Array.isArray(p)) currentLocal = p;
+        }
+      } catch (e) {}
+
+      const merged = mergePatientsLists(currentLocal, cloudPatients || [], normKey);
+      setPatients(merged);
+      localStorage.setItem(storageKey, JSON.stringify(merged));
+
+      // Auto-upload any local patients to Cloud Firestore that aren't in cloud list yet
+      const cloudIds = new Set((cloudPatients || []).map(p => p.id));
+      merged.forEach(p => {
+        if (!cloudIds.has(p.id)) {
+          saveCloudPatient(p, doctor.licenseKey);
+        }
+      });
     });
 
     return () => unsubscribe();
@@ -256,6 +316,15 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
   };
 
   const handleDeletePatient = (patientId: string) => {
+    const normKey = (doctor?.licenseKey || '').trim().toUpperCase();
+    if (normKey && patientId) {
+      try {
+        const deletedSet = getDeletedPatientIds(normKey);
+        deletedSet.add(patientId);
+        localStorage.setItem(`dosia_deleted_patients_${normKey}`, JSON.stringify(Array.from(deletedSet)));
+      } catch (e) {}
+    }
+
     const updated = patients.filter(p => p.id !== patientId);
     savePatientsToStorage(updated);
     deleteCloudPatient(patientId);
@@ -284,52 +353,75 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     handleUpdatePatient(updated);
   };
 
+  // Filtered patients for dropdown
+  const filteredDropdownPatients = patients.filter(p => {
+    if (!patientSearchQuery.trim()) return true;
+    const q = patientSearchQuery.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(q) ||
+      p.cardId.toLowerCase().includes(q) ||
+      p.hcNumber.toLowerCase().includes(q)
+    );
+  });
+
   return (
-    <div className="min-h-screen bg-brand-dark text-slate-100 flex flex-col font-sans selection:bg-brand-teal selection:text-slate-900">
+    <div className="min-h-screen bg-brand-dark text-slate-100 flex flex-col font-sans selection:bg-brand-teal selection:text-slate-900 transition-all duration-300">
       
       {/* 1. TOP SYSTEM APP BAR */}
-      <header className="bg-brand-navy-light border-b border-slate-800 px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 sticky top-0 z-30">
+      <header className="bg-brand-navy-light border-b border-slate-800 px-3 sm:px-6 py-2.5 sm:py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 sticky top-0 z-30">
         
         {/* Left Branding */}
-        <div className="flex items-center gap-3">
-          <DosiaAppIcon size="sm" className="animate-pulse" />
-          <div>
-            <div className="flex items-center gap-2">
-              <DosiaLogo size="md" />
-              {/* Prompt Request #4: "PRESCRIPCIÓN MÉDICA" */}
-              <span className="text-[10px] bg-brand-teal/20 text-brand-teal border border-brand-teal/40 px-2.5 py-0.5 rounded-full font-mono font-bold tracking-wider uppercase">
-                PRESCRIPCIÓN MÉDICA
-              </span>
-            </div>
+        <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <DosiaAppIcon size="sm" className="animate-pulse shrink-0" />
+            <div>
+              <div className="flex items-center gap-2">
+                <DosiaLogo size="md" />
+                <span className="text-[9px] sm:text-[10px] bg-brand-teal/20 text-brand-teal border border-brand-teal/40 px-2 sm:px-2.5 py-0.5 rounded-full font-mono font-bold tracking-wider uppercase shrink-0">
+                  PRESCRIPCIÓN MÉDICA
+                </span>
+              </div>
 
-            {/* Prompt Request #5: License below Médico Autorizado */}
-            <div className="text-xs text-slate-400 mt-1 leading-snug">
-              <div>Médico Autorizado: <strong className="text-slate-200">{doctor.name}</strong></div>
-              <div>Licencia: <span className="font-mono text-brand-teal font-semibold">{doctor.licenseKey}</span></div>
+              <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1 leading-snug">
+                <div>Médico Autorizado: <strong className="text-slate-200">{doctor.name}</strong></div>
+                <div>Licencia: <span className="font-mono text-brand-teal font-semibold">{doctor.licenseKey}</span></div>
+              </div>
             </div>
           </div>
+
+          {/* Mobile Logout Button (Visible only on small screens next to brand) */}
+          <button
+            type="button"
+            onClick={onLogout}
+            className="md:hidden bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 p-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center shrink-0"
+            title="Cerrar sesión"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Action Tools & Top Right Logout Button */}
-        <div className="flex items-center flex-wrap justify-between md:justify-end gap-2 w-full md:w-auto">
+        {/* Action Tools & Top Right Buttons */}
+        <div className="grid grid-cols-3 sm:flex sm:items-center sm:flex-wrap justify-between md:justify-end gap-1.5 sm:gap-2 w-full md:w-auto">
           
           <button
             type="button"
             onClick={() => setShowNewPatientModal(true)}
-            className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-all cursor-pointer shadow-md shadow-brand-teal/10"
+            className="col-span-1 bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-2 sm:px-3 py-1.5 rounded-xl text-xs flex items-center justify-center gap-1 transition-all cursor-pointer shadow-md shadow-brand-teal/10"
           >
-            <Plus className="w-4 h-4" /> Nuevo Paciente
+            <Plus className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Nuevo Paciente</span>
           </button>
 
           {/* White Pacientes Button right next to Nuevo Paciente */}
           <button
             type="button"
             onClick={() => setShowPatientsListModal(true)}
-            className="bg-white hover:bg-slate-100 text-slate-900 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-slate-200"
+            className="col-span-1 bg-white hover:bg-slate-100 text-slate-900 font-bold px-2 sm:px-3 py-1.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm border border-slate-200"
           >
-            <User className="w-4 h-4 text-brand-navy" /> Pacientes
+            <User className="w-3.5 h-3.5 text-brand-navy shrink-0" />
+            <span className="truncate">Pacientes</span>
             {patients.length > 0 && (
-              <span className="bg-brand-navy/10 text-brand-navy text-[10px] font-extrabold px-1.5 py-0.2 rounded-full font-mono">
+              <span className="bg-brand-navy/10 text-brand-navy text-[10px] font-extrabold px-1.5 py-0.2 rounded-full font-mono shrink-0">
                 {patients.length}
               </span>
             )}
@@ -339,16 +431,17 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
           <button
             type="button"
             onClick={() => setIsSearchOpen(true)}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+            className="col-span-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
           >
-            <Search className="w-3.5 h-3.5 text-brand-teal" /> Buscar (Ctrl+K)
+            <Search className="w-3.5 h-3.5 text-brand-teal shrink-0" />
+            <span className="truncate">Buscar</span>
           </button>
 
-          {/* Prompt Request #6: Logout button top right */}
+          {/* Logout button desktop */}
           <button
             type="button"
             onClick={onLogout}
-            className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ml-auto md:ml-0"
+            className="hidden md:flex bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer items-center gap-1"
             title="Cerrar sesión"
           >
             <LogOut className="w-3.5 h-3.5" /> Salir
@@ -361,26 +454,156 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
       <ClinicalAlertsBar patient={activePatient} onUpdateAlerts={handleUpdateAlerts} />
 
       {/* 3. PATIENT SELECTOR STRIP DIRECTLY ABOVE / NEAR THE TABS (Prompt Request #7) */}
-      <div className="bg-slate-900/90 border-b border-slate-800 px-3 sm:px-6 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="bg-slate-900/90 border-b border-slate-800 px-3 sm:px-6 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 relative">
         <div className="flex items-center gap-2 min-w-0 max-w-full">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono shrink-0">
             Paciente:
           </span>
-          {/* Dropdown Selector */}
-          <div className="flex items-center gap-2 bg-brand-navy-light border border-slate-700 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-inner min-w-0 max-w-full overflow-hidden">
-            <User className="w-4 h-4 text-brand-teal shrink-0" />
-            <select
-              value={activePatientId}
-              onChange={(e) => setActivePatientId(e.target.value)}
-              className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer py-0.5 truncate max-w-[200px] xs:max-w-[260px] sm:max-w-md"
+
+          {/* CUSTOM INTERACTIVE PATIENT DROPDOWN SELECTOR */}
+          <div className="relative inline-block text-left min-w-0 max-w-full">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsPatientDropdownOpen(prev => !prev);
+              }}
+              className="flex items-center justify-between gap-2 bg-slate-950 hover:bg-slate-800 border border-brand-teal/50 rounded-xl px-3 py-1.5 shadow-inner transition-all cursor-pointer min-w-0 text-xs font-bold text-white max-w-[280px] sm:max-w-md select-none"
+              title="Haz clic para seleccionar o cambiar de paciente"
             >
-              <option value="" className="bg-slate-900 text-slate-400">-- Ningún paciente seleccionado --</option>
-              {patients.map(p => (
-                <option key={p.id} value={p.id} className="bg-slate-900 text-white">
-                  {p.name} — Cédula: {p.cardId} ({p.patientCategory || (p.age < 15 ? 'PEDIÁTRICO' : 'ADULTO')})
-                </option>
-              ))}
-            </select>
+              <div className="flex items-center gap-2 min-w-0">
+                <User className="w-4 h-4 text-brand-teal shrink-0" />
+                <span className="truncate">
+                  {activePatient ? (
+                    <>
+                      <strong className="text-white">{activePatient.name}</strong> — {activePatient.cardId}
+                    </>
+                  ) : (
+                    <span className="text-slate-400 italic">-- Seleccionar Paciente --</span>
+                  )}
+                </span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-brand-teal shrink-0 transition-transform ${isPatientDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* POPUP DROPDOWN MENU FOR SELECTING PATIENT */}
+            {isPatientDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-xs sm:bg-transparent sm:backdrop-blur-none" 
+                  onClick={() => setIsPatientDropdownOpen(false)} 
+                />
+                <div className="fixed inset-x-3 top-28 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:w-96 z-[125] bg-slate-900 border border-brand-teal/60 rounded-2xl shadow-2xl overflow-hidden py-1 divide-y divide-slate-800 animate-fade-in max-h-[70vh] flex flex-col">
+                  
+                  {/* Search Header */}
+                  <div className="p-2.5 bg-slate-950 shrink-0 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider">
+                      <span>Seleccionar Paciente</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsPatientDropdownOpen(false)}
+                        className="text-slate-400 hover:text-white p-0.5"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por nombre, cédula o HC..."
+                        value={patientSearchQuery}
+                        onChange={(e) => setPatientSearchQuery(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-teal"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Options List */}
+                  <div className="overflow-y-auto divide-y divide-slate-800/60 max-h-[300px]">
+                    {/* Option: None */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setActivePatientId('');
+                        setIsPatientDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2.5 text-xs font-bold flex items-center justify-between cursor-pointer transition-colors ${
+                        activePatientId === '' ? 'bg-brand-teal/20 text-brand-teal font-extrabold' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <span className="italic">-- Ningún paciente seleccionado --</span>
+                      {activePatientId === '' && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
+                    </button>
+
+                    {/* Patient Items */}
+                    {filteredDropdownPatients.length === 0 ? (
+                      <div className="px-3 py-4 text-center text-xs text-slate-500 italic">
+                        No se encontraron pacientes registrados.
+                      </div>
+                    ) : (
+                      filteredDropdownPatients.map((p) => {
+                        const isSelected = p.id === activePatientId;
+                        const cat = p.patientCategory || (p.age < 15 ? 'PEDIÁTRICO' : 'ADULTO');
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setActivePatientId(p.id);
+                              setIsPatientDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2.5 text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                              isSelected
+                                ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
+                                : 'text-slate-200 hover:bg-slate-800'
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0 pr-2">
+                              <div className="font-bold text-white flex items-center gap-1.5 truncate">
+                                <span>{p.name}</span>
+                                <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                                  cat === 'PEDIÁTRICO' ? 'bg-amber-500/20 text-amber-300' : 'bg-sky-500/20 text-sky-300'
+                                }`}>
+                                  {cat}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                Cédula: {p.cardId} • Edad: {p.age}a • HC: {p.hcNumber}
+                              </div>
+                            </div>
+                            {isSelected && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Create New Patient Footer Option */}
+                  <div className="p-2 bg-slate-950 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsPatientDropdownOpen(false);
+                        setShowNewPatientModal(true);
+                      }}
+                      className="w-full bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
+                    >
+                      <Plus className="w-4 h-4" /> Registrar Nuevo Paciente
+                    </button>
+                  </div>
+
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -418,8 +641,12 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
             <div className="relative inline-block text-left shrink-0">
               <button
                 type="button"
-                onClick={() => setOpenGroup(openGroup === 'g1' ? null : 'g1')}
-                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpenGroup(openGroup === 'g1' ? null : 'g1');
+                }}
+                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border select-none ${
                   isG1Active
                     ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
                     : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
@@ -437,10 +664,24 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
               {openGroup === 'g1' && (
                 <>
-                  <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setOpenGroup(null)} />
-                  <div className="absolute top-full left-0 mt-2 w-56 sm:w-64 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 overflow-hidden py-1 divide-y divide-slate-800">
-                    <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-950/80">
-                      GRUPO 1 — Paciente & Consulta
+                  <div 
+                    className="fixed inset-0 z-[100] bg-black/60 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none" 
+                    onClick={() => setOpenGroup(null)} 
+                  />
+                  <div className="fixed inset-x-3 top-28 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:w-64 z-[110] rounded-2xl bg-slate-900 border border-brand-teal/50 shadow-2xl overflow-hidden py-1 divide-y divide-slate-800">
+                    <div className="px-3.5 py-2 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-950/90 flex items-center justify-between">
+                      <span>GRUPO 1 — Paciente & Consulta</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenGroup(null);
+                        }}
+                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                     {g1Items.map((item) => {
                       const Icon = item.icon;
@@ -449,21 +690,23 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                         <button
                           key={item.id}
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setActiveTab(item.id as any);
                             setOpenGroup(null);
                           }}
-                          className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                          className={`w-full text-left px-4 py-3 sm:py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                             isActive
                               ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
                               : 'text-slate-200 hover:bg-slate-800 hover:text-white'
                           }`}
                         >
-                          <div className="flex items-center gap-2">
-                            <Icon className="w-4 h-4 text-brand-teal" />
+                          <div className="flex items-center gap-2.5">
+                            <Icon className="w-4 h-4 text-brand-teal shrink-0" />
                             <span>{item.label}</span>
                           </div>
-                          {isActive && <Check className="w-4 h-4 text-brand-teal" />}
+                          {isActive && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
                         </button>
                       );
                     })}
@@ -487,8 +730,12 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
             <div className="relative inline-block text-left shrink-0">
               <button
                 type="button"
-                onClick={() => setOpenGroup(openGroup === 'g2' ? null : 'g2')}
-                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpenGroup(openGroup === 'g2' ? null : 'g2');
+                }}
+                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border select-none ${
                   isG2Active
                     ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
                     : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
@@ -506,10 +753,24 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
               {openGroup === 'g2' && (
                 <>
-                  <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setOpenGroup(null)} />
-                  <div className="absolute top-full left-0 mt-2 w-60 sm:w-64 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 overflow-hidden py-1 divide-y divide-slate-800">
-                    <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-950/80">
-                      GRUPO 2 — Prescripción & Docs
+                  <div 
+                    className="fixed inset-0 z-[100] bg-black/60 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none" 
+                    onClick={() => setOpenGroup(null)} 
+                  />
+                  <div className="fixed inset-x-3 top-28 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:w-64 z-[110] rounded-2xl bg-slate-900 border border-brand-teal/50 shadow-2xl overflow-hidden py-1 divide-y divide-slate-800">
+                    <div className="px-3.5 py-2 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-950/90 flex items-center justify-between">
+                      <span>GRUPO 2 — Prescripción & Docs</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenGroup(null);
+                        }}
+                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                     {g2Items.map((item) => {
                       const Icon = item.icon;
@@ -518,21 +779,23 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                         <button
                           key={item.id}
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setActiveTab(item.id as any);
                             setOpenGroup(null);
                           }}
-                          className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                          className={`w-full text-left px-4 py-3 sm:py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                             isActive
                               ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
                               : 'text-slate-200 hover:bg-slate-800 hover:text-white'
                           }`}
                         >
-                          <div className="flex items-center gap-2">
-                            <Icon className="w-4 h-4 text-brand-teal" />
+                          <div className="flex items-center gap-2.5">
+                            <Icon className="w-4 h-4 text-brand-teal shrink-0" />
                             <span>{item.label}</span>
                           </div>
-                          {isActive && <Check className="w-4 h-4 text-brand-teal" />}
+                          {isActive && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
                         </button>
                       );
                     })}
@@ -558,8 +821,12 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
             <div className="relative inline-block text-left shrink-0">
               <button
                 type="button"
-                onClick={() => setOpenGroup(openGroup === 'g3' ? null : 'g3')}
-                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpenGroup(openGroup === 'g3' ? null : 'g3');
+                }}
+                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border select-none ${
                   isG3Active
                     ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
                     : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
@@ -577,10 +844,24 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
               {openGroup === 'g3' && (
                 <>
-                  <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setOpenGroup(null)} />
-                  <div className="absolute top-full left-0 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 overflow-hidden py-1 divide-y divide-slate-800">
-                    <div className="px-3 py-1.5 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-950/80">
-                      GRUPO 3 — Historial & Diagnóstico
+                  <div 
+                    className="fixed inset-0 z-[100] bg-black/60 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none" 
+                    onClick={() => setOpenGroup(null)} 
+                  />
+                  <div className="fixed inset-x-3 top-28 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:w-64 z-[110] rounded-2xl bg-slate-900 border border-brand-teal/50 shadow-2xl overflow-hidden py-1 divide-y divide-slate-800">
+                    <div className="px-3.5 py-2 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-950/90 flex items-center justify-between">
+                      <span>GRUPO 3 — Historial & Diagnóstico</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenGroup(null);
+                        }}
+                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                     {g3Items.map((item) => {
                       const Icon = item.icon;
@@ -589,21 +870,23 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                         <button
                           key={item.id}
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setActiveTab(item.id as any);
                             setOpenGroup(null);
                           }}
-                          className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                          className={`w-full text-left px-4 py-3 sm:py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                             isActive
                               ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
                               : 'text-slate-200 hover:bg-slate-800 hover:text-white'
                           }`}
                         >
-                          <div className="flex items-center gap-2">
-                            <Icon className="w-4 h-4 text-brand-teal" />
+                          <div className="flex items-center gap-2.5">
+                            <Icon className="w-4 h-4 text-brand-teal shrink-0" />
                             <span>{item.label}</span>
                           </div>
-                          {isActive && <Check className="w-4 h-4 text-brand-teal" />}
+                          {isActive && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
                         </button>
                       );
                     })}

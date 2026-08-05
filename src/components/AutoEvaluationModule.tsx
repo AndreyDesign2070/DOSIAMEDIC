@@ -119,20 +119,20 @@ export default function AutoEvaluationModule({ patient, onUpdateVitals }: AutoEv
   };
 
   return (
-    <div className="bg-brand-navy-light/30 border border-slate-800 rounded-3xl p-6 text-left space-y-6">
+    <div className="bg-brand-navy-light/30 border border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 text-left space-y-4 sm:space-y-6">
       
       {/* Module Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 sm:pb-4">
         <div>
-          <h3 className="text-xl font-bold font-display text-white flex items-center gap-2">
-            <Activity className="w-5 h-5 text-brand-teal" /> Evaluación Automática Integral & Signos Vitales
+          <h3 className="text-lg sm:text-xl font-bold font-display text-white flex items-center gap-2">
+            <Activity className="w-5 h-5 text-brand-teal shrink-0" /> Evaluation Automática Integral & Signos Vitales
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
             Cálculo instantáneo de IMC, Superficie Corporal (BSA), Presión Arterial Media (PAM), Índice de Shock y Escala de Glasgow 04VSM6.
           </p>
         </div>
 
-        <div className="bg-brand-teal/15 border border-brand-teal/30 p-2.5 rounded-2xl flex items-center gap-2 text-xs text-brand-teal font-mono font-bold">
+        <div className="bg-brand-teal/15 border border-brand-teal/30 p-2 sm:p-2.5 rounded-2xl flex items-center gap-2 text-xs text-brand-teal font-mono font-bold shrink-0">
           <Sparkles className="w-4 h-4 shrink-0" />
           <span>Sincronización en Tiempo Real</span>
         </div>
