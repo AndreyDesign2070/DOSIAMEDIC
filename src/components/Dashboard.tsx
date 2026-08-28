@@ -5,7 +5,6 @@ import {
 } from '../types';
 import { INITIAL_MEDICATIONS, INITIAL_PROTOCOLS, INITIAL_PATIENTS } from '../data';
 import PatientTreatmentSection from './PatientTreatmentSection';
-import PatientProfileCard from './PatientProfileCard';
 import AutoEvaluationModule from './AutoEvaluationModule';
 import MedicalScalesModule from './MedicalScalesModule';
 import EmergencyModeModule from './EmergencyModeModule';
@@ -49,10 +48,8 @@ export default function Dashboard({ doctor, onLogout, onOpenCreateIcon }: Dashbo
   // Navigation Tab state: Mobile-First, Direct Buttons (No dropdown groups)
   const [activeTab, setActiveTab] = useState<
     | 'treatment'
-    | 'patient_profile'
     | 'clinical_consultation'
     | 'emr_timeline'
-    | 'medical_scales'
     | 'ai_medical'
     | 'emergency_mode'
   >('treatment');
@@ -522,21 +519,7 @@ export default function Dashboard({ doctor, onLogout, onOpenCreateIcon }: Dashbo
             <span>Tratamiento & Vademécum</span>
           </button>
 
-          {/* TAB 2: DATOS DEL PACIENTE & VITALS */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('patient_profile')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
-              activeTab === 'patient_profile'
-                ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-md shadow-brand-teal/20 font-extrabold'
-                : 'bg-slate-950/80 text-slate-300 hover:bg-slate-800 border-slate-700/80'
-            }`}
-          >
-            <User className="w-4 h-4" />
-            <span>Datos & Signos Vitales</span>
-          </button>
-
-          {/* TAB 3: CONSULTA & EVALUACIÓN */}
+          {/* TAB 2: CONSULTA & EVALUACIÓN */}
           <button
             type="button"
             onClick={() => setActiveTab('clinical_consultation')}
@@ -564,21 +547,7 @@ export default function Dashboard({ doctor, onLogout, onOpenCreateIcon }: Dashbo
             <span>Historial Clínico</span>
           </button>
 
-          {/* TAB 5: ESCALAS MÉDICAS */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('medical_scales')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
-              activeTab === 'medical_scales'
-                ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-md shadow-brand-teal/20 font-extrabold'
-                : 'bg-slate-950/80 text-slate-300 hover:bg-slate-800 border-slate-700/80'
-            }`}
-          >
-            <Stethoscope className="w-4 h-4" />
-            <span>Escalas Médicas</span>
-          </button>
-
-          {/* TAB 6: IA MÉDICA (Direct Button) */}
+          {/* TAB 5: IA MÉDICA (Direct Button) */}
           <button
             type="button"
             onClick={() => setActiveTab('ai_medical')}
@@ -612,8 +581,8 @@ export default function Dashboard({ doctor, onLogout, onOpenCreateIcon }: Dashbo
       {/* 4. MAIN CONTENT CONTAINER */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-6">
         
-        {/* If no patient is active and on Patient Profile or Treatment: Show Hero Action Cards */}
-        {!activePatient && (activeTab === 'treatment' || activeTab === 'patient_profile' || activeTab === 'clinical_consultation') && (
+        {/* If no patient is active and on Patient Consultation or Treatment: Show Hero Action Cards */}
+        {!activePatient && (activeTab === 'treatment' || activeTab === 'clinical_consultation') && (
           <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-6 sm:p-10 text-center space-y-6 max-w-2xl mx-auto shadow-2xl animate-fade-in">
             <div className="w-16 h-16 bg-brand-teal/10 border border-brand-teal/30 text-brand-teal rounded-full flex items-center justify-center mx-auto">
               <Pill className="w-8 h-8" />
@@ -662,20 +631,7 @@ export default function Dashboard({ doctor, onLogout, onOpenCreateIcon }: Dashbo
           />
         )}
 
-        {/* TAB 2: DATOS DEL PACIENTE & VITALS */}
-        {activeTab === 'patient_profile' && activePatient && (
-          <div className="space-y-6 animate-fade-in">
-            <PatientProfileCard
-              patient={activePatient}
-              onUpdatePatient={handleUpdatePatient}
-              onOpenConsultation={() => setActiveTab('treatment')}
-              onOpenNewPatientModal={() => setShowNewPatientModal(true)}
-              onSaveToEMR={(newEntry) => setEmrEntries([newEntry, ...emrEntries])}
-            />
-          </div>
-        )}
-
-        {/* TAB 3: CONSULTA & EVALUACIÓN */}
+        {/* TAB 2: CONSULTA & EVALUACIÓN */}
         {activeTab === 'clinical_consultation' && activePatient && (
           <div className="space-y-6 animate-fade-in">
             <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
@@ -694,21 +650,14 @@ export default function Dashboard({ doctor, onLogout, onOpenCreateIcon }: Dashbo
           </div>
         )}
 
-        {/* TAB 5: ESCALAS MÉDICAS */}
-        {activeTab === 'medical_scales' && (
-          <div className="space-y-6 animate-fade-in">
-            <MedicalScalesModule patient={activePatient} />
-          </div>
-        )}
-
-        {/* TAB 6: IA MÉDICA */}
+        {/* TAB 5: IA MÉDICA */}
         {activeTab === 'ai_medical' && (
           <div className="space-y-6 animate-fade-in">
             <AIMedicalAssistantModule patient={activePatient} />
           </div>
         )}
 
-        {/* TAB 7: MODO EMERGENCIA */}
+        {/* TAB 6: MODO EMERGENCIA */}
         {activeTab === 'emergency_mode' && (
           <div className="space-y-6 animate-fade-in">
             <EmergencyModeModule patient={activePatient} />

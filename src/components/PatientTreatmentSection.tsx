@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Pill, Activity, ShieldAlert, HeartPulse, Stethoscope, CheckCircle2, 
   Sparkles, AlertCircle, FileText, ChevronDown, ChevronUp,
@@ -29,16 +29,49 @@ interface ClinicalScaleOption {
 }
 
 const CLINICAL_SCALES: ClinicalScaleOption[] = [
-  { id: 'none', name: 'Ninguna (Esquema Estándar)', category: 'General', tag: 'Estándar', badgeColor: 'bg-slate-800 text-slate-300 border-slate-700', description: 'Tratamiento base ajustado según edad, peso y constantes vitales.' },
+  { id: 'none', name: 'Ninguna (Esquema Clínico Estándar)', category: 'General', tag: 'Estándar', badgeColor: 'bg-slate-800 text-slate-300 border-slate-700', description: 'Tratamiento base ajustado según edad, peso y constantes vitales.' },
   { id: 'qsofa', name: 'qSOFA / SOFA (Sepsis & Choque Séptico)', category: 'Sepsis', tag: 'Sepsis', badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40', description: 'Reanimación hídrica urgente + Ceftriaxona/Pip-Tazo + soporte hemodinámico.' },
-  { id: 'curb65', name: 'CURB-65 (Neumonía Adquirida en Comunidad)', category: 'Neumonía', tag: 'Neumonía', badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40', description: 'Ceftriaxona + Azitromicina/Claritromicina + O2 humidificado + broncodilatadores.' },
-  { id: 'alvarado', name: 'Escala de Alvarado (Apendicitis Aguda)', category: 'Cirugía', tag: 'Apendicitis', badgeColor: 'bg-orange-500/20 text-orange-300 border-orange-500/40', description: 'NPO estricto + Ringer Lactato IV + Ciprofloxacino/Metronidazol + Valoración Quirúrgica.' },
-  { id: 'centor', name: 'Criterios de Centor (Faringitis Estreptocócica)', category: 'Infeccioso', tag: 'Faringitis', badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', description: 'Penicilina Benzatínica IM o Amoxi/Clavulánico + Antiinflamatorio + Aislamiento relativo.' },
-  { id: 'silverman', name: 'Silverman-Andersen (Distrés Respiratorio Infantil)', category: 'Pediatría', tag: 'Distrés Resp.', badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40', description: 'Oxigenoterapia en cánula/CPAP + posición semifowler + hidratación parenteral.' },
-  { id: 'wells', name: 'Criterios de Wells (Tromboembolismo Pulmonar / TVP)', category: 'Cardiovascular', tag: 'TEP / TVP', badgeColor: 'bg-red-500/20 text-red-300 border-red-500/40', description: 'Enoxaparina 1 mg/kg SC c/12h + AngioTAC + monitorización continua.' },
+  { id: 'sirs', name: 'SIRS (Respuesta Inflamatoria Sistémica)', category: 'Sepsis', tag: 'SIRS', badgeColor: 'bg-orange-500/20 text-orange-300 border-orange-500/40', description: 'Hemocultivos tempranos + fluidoterapia guiada por metas + antibióticos dirigidos.' },
+  { id: 'news2', name: 'NEWS2 (Deterioro Clínico Agudo)', category: 'Urgencias', tag: 'NEWS2', badgeColor: 'bg-red-500/20 text-red-300 border-red-500/40', description: 'Monitoreo continuo cada 30 min + escalonamiento a sala de reanimación/UCI.' },
+  { id: 'centor', name: 'Criterios de Centor / McIsaac (Faringitis Estreptocócica)', category: 'Infeccioso', tag: 'Faringitis', badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', description: 'Penicilina Benzatínica IM o Amoxi/Clavulánico + Antiinflamatorio + Aislamiento relativo.' },
   { id: 'heart', name: 'HEART Score (Dolor Torácico / Síndrome Coronario)', category: 'Cardiología', tag: 'SCA / IAM', badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40', description: 'AAS 300mg + Clopidogrel 300mg + Nitroglicerina + Enoxaparina + ECG seriado.' },
-  { id: 'cha2ds2vasc', name: 'CHA2DS2-VASc (Fibrilación Auricular)', category: 'Cardiología', tag: 'FA / ACV', badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40', description: 'Anticoagulación oral preventiva + control de frecuencia ventricular.' },
-  { id: 'childpugh', name: 'Child-Pugh (Cirrosis / Falla Hepática)', category: 'Hepatología', tag: 'Cirrosis', badgeColor: 'bg-amber-600/20 text-amber-300 border-amber-600/40', description: 'Lactulosa + Rifaximina + Espironolactona + restricción de sodio estricta.' }
+  { id: 'timi', name: 'TIMI Score (Riesgo Coronario Agudo)', category: 'Cardiología', tag: 'TIMI', badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40', description: 'Estratificación invasiva precoz + doble antiagregación + anticoagulación parenteral.' },
+  { id: 'cha2ds2vasc', name: 'CHA2DS2-VASc (Fibrilación Auricular)', category: 'Cardiología', tag: 'FA / ACV', badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40', description: 'Anticoagulación oral preventiva directa (DOAC) + control de frecuencia ventricular.' },
+  { id: 'hasbled', name: 'HAS-BLED (Riesgo Hemorrágico)', category: 'Cardiología', tag: 'Hemorragia', badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40', description: 'Monitoreo de factores modificables de sangrado + ajuste cuidadoso de dosis anticoagulante.' },
+  { id: 'nyha', name: 'NYHA (Insuficiencia Cardíaca Congestiva)', category: 'Cardiología', tag: 'ICC', badgeColor: 'bg-violet-500/20 text-violet-300 border-violet-500/40', description: 'Furosemida IV + Espironolactona + IECA/ARA-II + restricción hidrosalina estricta.' },
+  { id: 'curb65', name: 'CURB-65 (Neumonía Adquirida en Comunidad)', category: 'Neumonía', tag: 'Neumonía', badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/40', description: 'Ceftriaxona + Azitromicina/Claritromicina + O2 humidificado + broncodilatadores.' },
+  { id: 'wells', name: 'Criterios de Wells (Tromboembolismo Pulmonar / TVP)', category: 'Cardiovascular', tag: 'TEP / TVP', badgeColor: 'bg-red-500/20 text-red-300 border-red-500/40', description: 'Enoxaparina 1 mg/kg SC c/12h + AngioTAC de tórax urgente + monitorización continua.' },
+  { id: 'geneva', name: 'Score de Ginebra (Probabilidad TEP)', category: 'Respiratorio', tag: 'Ginebra TEP', badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/40', description: 'Dímero D ultrasensible + AngioTAC + anticoagulación preventiva inmediata.' },
+  { id: 'gina_asthma', name: 'GINA (Crisis Asmática Aguda Severa)', category: 'Respiratorio', tag: 'Crisis Asma', badgeColor: 'bg-emerald-600/20 text-emerald-300 border-emerald-600/40', description: 'Salbutamol + Ipratropio nebulizados + Hidrocortisona/Prednisona sistémica + O2.' },
+  { id: 'gold_epoc', name: 'GOLD / Anthonisen (Exacerbación de EPOC)', category: 'Respiratorio', tag: 'EPOC', badgeColor: 'bg-amber-600/20 text-amber-300 border-amber-600/40', description: 'Broncodilatadores duales + Corticoide sistémico corto + Amoxi/Clavulánico si esputo purulento.' },
+  { id: 'glasgow', name: 'Escala de Coma de Glasgow (TCE & Conciencia)', category: 'Neurología', tag: 'GCS / TCE', badgeColor: 'bg-pink-500/20 text-pink-300 border-pink-500/40', description: 'Protección de vía aérea si GCS ≤ 8 + Manitol/Salino hipertónico si HIC + TAC de cráneo.' },
+  { id: 'nihss', name: 'NIHSS (Código Ictus / ACV Isquémico)', category: 'Neurología', tag: 'Código Ictus', badgeColor: 'bg-rose-600/20 text-rose-300 border-rose-600/40', description: 'TAC cerebral simple urgente sin contraste + ventana de trombolisis con rtPA (< 4.5h).' },
+  { id: 'abcd2', name: 'Score ABCD2 (Riesgo ACV post-AIT)', category: 'Neurología', tag: 'AIT / ACV', badgeColor: 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40', description: 'Doble antiagregación precoz (AAS + Clopidogrel x 21d) + Doppler carotídeo + Holter.' },
+  { id: 'alvarado', name: 'Escala de Alvarado / MANTRELS (Apendicitis Aguda)', category: 'Cirugía', tag: 'Apendicitis', badgeColor: 'bg-orange-500/20 text-orange-300 border-orange-500/40', description: 'NPO estricto + Ringer Lactato IV + Ciprofloxacino/Metronidazol + Valoración Quirúrgica.' },
+  { id: 'air_score', name: 'AIR Score (Respuesta Inflamatoria Apendicular)', category: 'Cirugía', tag: 'AIR Score', badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40', description: 'Estratificación de riesgo apendicular + PCR seriada + ecografía/TAC abdominal.' },
+  { id: 'childpugh', name: 'Child-Pugh (Cirrosis / Falla Hepática)', category: 'Hepatología', tag: 'Cirrosis', badgeColor: 'bg-amber-700/20 text-amber-300 border-amber-700/40', description: 'Lactulosa + Rifaximina + Espironolactona + restricción de sodio estricta.' },
+  { id: 'meld', name: 'MELD Score (Hepatopatía Terminal)', category: 'Hepatología', tag: 'MELD', badgeColor: 'bg-orange-600/20 text-orange-300 border-orange-600/40', description: 'Optimización de función renal + profilaxis PBE + evaluación de trasplante hepático.' },
+  { id: 'ranson', name: 'Criterios de Ranson / BISAP (Pancreatitis Aguda)', category: 'Gastroenterología', tag: 'Pancreatitis', badgeColor: 'bg-yellow-600/20 text-yellow-300 border-yellow-600/40', description: 'Hidratación parenteral intensiva con Ringer Lactato (200-250 mL/h) + analgesia + reposo gástrico.' },
+  { id: 'rockall', name: 'Score de Rockall / Glasgow-Blatchford (HDA)', category: 'Gastroenterología', tag: 'HDA', badgeColor: 'bg-red-600/20 text-red-300 border-red-600/40', description: 'Omeprazol bolo 80mg + infusión 8mg/h + Endoscopía alta de urgencia (< 24h).' },
+  { id: 'silverman', name: 'Silverman-Andersen (Distrés Respiratorio Infantil)', category: 'Pediatría', tag: 'Distrés Resp.', badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40', description: 'Oxigenoterapia en cánula/CPAP + posición semifowler + hidratación parenteral.' },
+  { id: 'apgar', name: 'Score de APGAR (Reanimación Perinatal)', category: 'Pediatría', tag: 'APGAR', badgeColor: 'bg-teal-400/20 text-teal-300 border-teal-400/40', description: 'Secado, estimulación térmica, permeabilización y ventilación con presión positiva si APGAR < 7.' },
+  { id: 'wood_downes', name: 'Wood-Downes-Ferrés (Bronquiolitis Aguda)', category: 'Pediatría', tag: 'Bronquiolitis', badgeColor: 'bg-blue-400/20 text-blue-300 border-blue-400/40', description: 'Solución Salina Hipertónica 3% nebulizada + lavado nasal + O2 humidificado.' },
+  { id: 'westley', name: 'Score de Westley (Crup Laríngeo / Laringotraqueítis)', category: 'Pediatría', tag: 'Crup', badgeColor: 'bg-purple-400/20 text-purple-300 border-purple-400/40', description: 'Dexametasona 0.6 mg/kg VO/IM dosis única + Adrenalina nebulizada 1:1000.' },
+  { id: 'kdigo', name: 'KDIGO / RIFLE (Lesión Renal Aguda / AKI)', category: 'Nefrología', tag: 'AKI / Renal', badgeColor: 'bg-lime-500/20 text-lime-300 border-lime-500/40', description: 'Suspensión de nefrotóxicos + balance hídrico estricto + ajuste renal de posología.' },
+  { id: 'hyperkalemia', name: 'Protocolo de Hiperpotasemia Aguda con Cambios ECG', category: 'Nefrología', tag: 'Hiperkalemia', badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40', description: 'Gluconato de Calcio 10% IV (estabilizador de membrana) + Insulina rápida en Dextrosa 10% + Salbutamol nebulizado.' },
+  { id: 'parkland', name: 'Fórmula de Parkland (Grandes Quemados)', category: 'Trauma', tag: 'Parkland', badgeColor: 'bg-orange-600/20 text-orange-300 border-orange-600/40', description: 'Ringer Lactato: 4 mL x kg x % SCTQ (50% en primeras 8h, 50% en siguientes 16h).' },
+  { id: 'rts', name: 'Revised Trauma Score (RTS Politrauma)', category: 'Trauma', tag: 'RTS / Trauma', badgeColor: 'bg-red-500/20 text-red-300 border-red-500/40', description: 'Protocolo ATLS: A-B-C-D-E + collarín cervical + reposición de volumen y empaquetamiento.' }
+];
+
+const SCALE_CATEGORIES = [
+  { id: 'TODOS', label: 'Todas' },
+  { id: 'Urgencias & Sepsis', label: '🚨 Urgencias & Sepsis', categories: ['Sepsis', 'Urgencias', 'Infeccioso'] },
+  { id: 'Cardiología', label: '❤️ Cardiología', categories: ['Cardiología', 'Cardiovascular'] },
+  { id: 'Respiratorio', label: '🫁 Respiratorio', categories: ['Respiratorio', 'Neumonía'] },
+  { id: 'Neurología', label: '🧠 Neurología', categories: ['Neurología'] },
+  { id: 'Gastroenterología', label: '🩺 Digestivo & Cirugía', categories: ['Gastroenterología', 'Cirugía', 'Hepatología'] },
+  { id: 'Pediatría', label: '👶 Pediatría', categories: ['Pediatría'] },
+  { id: 'Nefrología & Trauma', label: '🧪 Renal & Trauma', categories: ['Nefrología', 'Trauma'] },
 ];
 
 export default function PatientTreatmentSection({
@@ -117,6 +150,27 @@ export default function PatientTreatmentSection({
   
   // Selected Medical Scale (Optional)
   const [selectedScale, setSelectedScale] = useState<string>('none');
+  const [isScaleDropdownOpen, setIsScaleDropdownOpen] = useState(false);
+  const [scaleSearchQuery, setScaleSearchQuery] = useState('');
+  const [scaleCategoryFilter, setScaleCategoryFilter] = useState<string>('TODOS');
+  const scaleDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close scale dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (scaleDropdownRef.current && !scaleDropdownRef.current.contains(event.target as Node)) {
+        setIsScaleDropdownOpen(false);
+      }
+    };
+    if (isScaleDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isScaleDropdownOpen]);
 
   // Treatment components
   const [medications, setMedications] = useState<MedicationItem[]>([]);
@@ -867,6 +921,930 @@ export default function PatientTreatmentSection({
         `🚨 Hematemesis o deposiciones melénicas (Hemorragia Digestiva Alta por várices esofágicas)\n` +
         `🚨 Dolor abdominal difuso y fiebre > 37.8°C (Sospecha de Peritonitis Bacteriana Espontánea)\n` +
         `🚨 Oliguria progresiva con elevación rápida de creatinina (Síndrome Hepatorrenal)`;
+
+    } else if (scaleId === 'sirs' || scaleId === 'news2') {
+      // SIRS / NEWS2
+      adaptedMeds = [
+        {
+          name: 'Cristaloides Isotónicos (Ringer Lactato o SS 0.9%)',
+          indication: 'Estabilización hemodinámica y precarga',
+          doseMg: `${Math.round(weight * 20)} mL IV`,
+          route: 'Intravenosa',
+          frequency: 'En 1 a 2 horas',
+          duration: 'Reevaluación continua',
+          notes: 'Monitorear PAM y frecuencia cardíaca.'
+        },
+        {
+          name: !hasPenicillinAllergy ? 'Ceftriaxona 2g IV + Paracetamol 1g IV' : 'Levofloxacino 750mg IV + Paracetamol 1g IV',
+          indication: 'Cobertura antibiótica empírica y control de fiebre',
+          doseMg: isPediatric ? `Ceftriaxona ${Math.round(weight * 80)} mg/día IV` : '2 g IV QD',
+          route: 'Intravenosa',
+          frequency: 'Cada 24 horas',
+          duration: '7 días',
+          notes: 'Tomar hemocultivos previos.'
+        }
+      ];
+      conduct = 
+        `1. TRASLADO A SALA DE OBSERVACIÓN MONITORIZADA O REANIMACIÓN.\n` +
+        `2. Monitorización multiparámetro continua de PA, FC, FR, SpO2 y T° cada 30 minutos.\n` +
+        `3. Oxigenoterapia con cánula nasal si SpO2 < 94%.\n` +
+        `4. Control estricto de diuresis horaria con bolsa colectora.`;
+      tests = 
+        `• Biometría Hemática con fórmula blanca y recuento plaquetario\n` +
+        `• Lactato sérico arterial / venoso\n` +
+        `• PCR cuantitativa y Procalcitonina\n` +
+        `• Química sanguínea (Urea, Creatinina, Electrolitos, Glucemia)\n` +
+        `• Gasometría arterial y Hemocultivos x 2`;
+      alarms = 
+        `🚨 Hipotensión persistente (PAS < 90 mmHg) a pesar de carga hídrica\n` +
+        `🚨 Aumento de trabajo respiratorio con FR > 28 rpm o SpO2 < 92%\n` +
+        `🚨 Deterioro del estado de alerta o agitación psicomotriz\n` +
+        `🚨 Oliguria (< 0.5 mL/kg/h en 2 horas)`;
+
+    } else if (scaleId === 'timi') {
+      // TIMI Score
+      adaptedMeds = [
+        {
+          name: 'Ácido Acetilsalicílico 300 mg (Masticada) + Ticagrelor 180 mg (o Clopidogrel 300 mg)',
+          indication: 'Doble antiagregación plaquetaria intensiva en SCA',
+          doseMg: 'AAS 300 mg + Ticagrelor 180 mg (Dosis de Carga)',
+          route: 'Vía Oral',
+          frequency: 'Inmediato',
+          duration: 'Mantenimiento diario',
+          notes: 'Indispensable en TIMI moderado/alto riesgo.'
+        },
+        {
+          name: 'Enoxaparina Sódica 1 mg/kg SC',
+          indication: 'Anticoagulación sistémica en SCA',
+          doseMg: `${Math.round(weight * 1)} mg SC`,
+          route: 'Subcutánea',
+          frequency: 'Cada 12 horas',
+          duration: 'Hasta coronariografía',
+          notes: 'Ajustar dosis según función renal.'
+        },
+        {
+          name: 'Atorvastatina 80 mg Tabletas',
+          indication: 'Terapia con estatinas de alta potencia',
+          doseMg: '80 mg VO',
+          route: 'Vía Oral nocturna',
+          frequency: 'Cada 24 horas',
+          duration: 'Indefinida',
+          notes: 'Efecto estabilizador de placa.'
+        }
+      ];
+      conduct = 
+        `1. INGRESO INMEDIATO A UNIDAD CORONARIA / UCI.\n` +
+        `2. Monitorización electrocardiográfica continua y ECG de 12 derivaciones seriado.\n` +
+        `3. Estratificación invasiva precoz (Coronariografía / Cateterismo cardíaco < 24h).\n` +
+        `4. Reposo absoluto en cama y analgesia controlada.`;
+      tests = 
+        `• Troponina ultrasensible seriada a las 0h, 1h y 3h\n` +
+        `• Electrocardiograma de 12 derivaciones seriado\n` +
+        `• Ecocardiograma transtorácico de urgencia\n` +
+        `• Perfil Lipídico, Glucemia, Creatinina y Hemograma completo`;
+      alarms = 
+        `🚨 Nueva elevación del segmento ST o angina refractaria\n` +
+        `🚨 Inestabilidad hemodinámica o signos de insuficiencia cardíaca aguda (Killip III-IV)\n` +
+        `🚨 Arritmias ventriculares complejas (TV / FV)`;
+
+    } else if (scaleId === 'hasbled') {
+      // HAS-BLED
+      adaptedMeds = [
+        {
+          name: 'Apixabán 2.5 mg - 5 mg VO (o Anticoagulante ajustado)',
+          indication: 'Anticoagulación con estricto control de riesgo de sangrado',
+          doseMg: 'Dosis ajustada a edad, creatinina y peso',
+          route: 'Vía Oral',
+          frequency: 'Cada 12 horas',
+          duration: 'Crónica',
+          notes: 'Evitar asociación con AINEs o antiagregantes innecesarios.'
+        },
+        {
+          name: 'Omeprazol 20 mg - 40 mg VO',
+          indication: 'Gastroprotección para mitigar sangrado digestivo',
+          doseMg: '20 mg VO QD',
+          route: 'Vía Oral en ayunas',
+          frequency: 'Cada 24 horas',
+          duration: 'Continua',
+          notes: 'Protección de mucosa gástrica.'
+        }
+      ];
+      conduct = 
+        `1. Corregir factores de riesgo modificables: control estricto de hipertensión (PA < 130/80 mmHg).\n` +
+        `2. Prohibición estricta de automedicación con AINEs o aspirina no prescrita.\n` +
+        `3. Control periódico de INR (meta 2.0-3.0 si usa Warfarina) o función renal para DOACs.\n` +
+        `4. Advertir sobre signos de sangrado mucocutáneo o digestivo.`;
+      tests = 
+        `• Biometría Hemática con recuento de hemoglobina y plaquetas\n` +
+        `• Tiempos de coagulación (TP, TTP, INR)\n` +
+        `• Función Renal (Creatinina, Filtrado Glomerular) y Perfil Hepático`;
+      alarms = 
+        `🚨 Sangrado gastrointestinal (melenas, hematemesis o rectorragia)\n` +
+        `🚨 Cefalea súbita e intensa con focalidad neurológica (sospecha de sangrado intracraneal)\n` +
+        `🚨 Hematuria macroscópica franca o hematomas espontáneos extensos`;
+
+    } else if (scaleId === 'nyha') {
+      // NYHA Insuficiencia Cardíaca
+      adaptedMeds = [
+        {
+          name: 'Furosemida 20 mg - 40 mg IV / VO',
+          indication: 'Diurético de asa para descongestión pulmonar y periférica',
+          doseMg: isPediatric ? `${Math.round(weight * 1)} mg IV` : '40 mg IV bolo (titular según respuesta)',
+          route: 'Intravenosa / Vía Oral',
+          frequency: 'Cada 12 a 24 horas',
+          duration: 'Fase aguda descongestiva',
+          notes: 'Monitorear diuresis y electrolitos séricos (Potasio).'
+        },
+        {
+          name: 'Espironolactona 25 mg VO',
+          indication: 'Antagonista de receptores de mineralocorticoides (reducción de mortalidad en IC)',
+          doseMg: '25 mg VO',
+          route: 'Vía Oral matutina',
+          frequency: 'Cada 24 horas',
+          duration: 'Mantenimiento crónico',
+          notes: 'Suspender si Potasio sérico > 5.5 mEq/L.'
+        },
+        {
+          name: 'Enalapril 2.5 mg - 5 mg VO (o Sacubitril/Valsartán 24/26 mg)',
+          indication: 'Inhibición neurohormonal y remodelado inverso',
+          doseMg: '2.5 mg VO BID (titular)',
+          route: 'Vía Oral',
+          frequency: 'Cada 12 horas',
+          duration: 'Crónica',
+          notes: 'Monitorear PA y función renal.'
+        }
+      ];
+      conduct = 
+        `1. Restricción hidrosalina estricta (< 1.5 - 2 Litros de líquidos/día y < 2g de sodio).\n` +
+        `2. Posición Fowler a 45° - 90° con piernas declives.\n` +
+        `3. Control de peso diario en ayunas y balance hídrico estricto.\n` +
+        `4. Oxigenoterapia con cánula o VMNI si congestión pulmonar o SpO2 < 90%.`;
+      tests = 
+        `• BNP o NT-proBNP cuantitativo\n` +
+        `• Radiografía de Tórax PA (congestión hiliar, líneas B de Kerley, cardiomegalia)\n` +
+        `• Ecocardiograma Doppler transtorácico (fracción de eyección FEVI)\n` +
+        `• Electrolitos séricos (Sodio, Potasio), Urea y Creatinina`;
+      alarms = 
+        `🚨 Ortopnea severa o disnea paroxística nocturna invalidante\n` +
+        `🚨 Tos con expectoración rosada y espumosa (Edema Agudo de Pulmón)\n` +
+        `🚨 Aumento súbito de peso > 2 kg en 48 horas\n` +
+        `🚨 Hipotensión sistólica < 85 mmHg o síncope`;
+
+    } else if (scaleId === 'geneva') {
+      // Geneva TEP
+      adaptedMeds = [
+        {
+          name: 'Enoxaparina Sódica 1 mg/kg SC (o Heparina no fraccionada)',
+          indication: 'Anticoagulación de inicio ante sospecha clínica fundamentada',
+          doseMg: `${Math.round(weight * 1)} mg SC`,
+          route: 'Subcutánea',
+          frequency: 'Cada 12 horas',
+          duration: 'Hasta resultado de AngioTAC',
+          notes: 'Ajustar si insuficiencia renal.'
+        },
+        {
+          name: 'Oxigenoterapia suplementaria',
+          indication: 'Mantenimiento de SpO2 ≥ 95%',
+          doseMg: '2 a 4 L/min',
+          route: 'Cánula nasal',
+          frequency: 'Continua',
+          duration: 'Según pulsioximetría',
+          notes: 'Monitorear trabajo respiratorio.'
+        }
+      ];
+      conduct = 
+        `1. Realización urgente de AngioTAC de Tórax con contraste.\n` +
+        `2. Reposo absoluto en cama con monitorización continua.\n` +
+        `3. Descartar trombosis venosa profunda en extremidades inferiores.`;
+      tests = 
+        `• AngioTAC de Tórax con protocolo para TEP (o Gammagrafía V/Q)\n` +
+        `• Dímero D cuantitativo de alta sensibilidad\n` +
+        `• Troponina y Pro-BNP para estratificación de sobrecarga de VD\n` +
+        `• Eco-Doppler Venoso de Miembros Inferiores`;
+      alarms = 
+        `🚨 Hipotensión súbita o shock obstructivo\n` +
+        `🚨 Dolor torácico pleurítico fulminante con hemoptisis\n` +
+        `🚨 Síncope o taquicardia severa > 130 lpm`;
+
+    } else if (scaleId === 'gina_asthma') {
+      // Crisis Asmática Aguda GINA
+      adaptedMeds = [
+        {
+          name: 'Salbutamol + Bromuro de Ipratropio (Nebulización / Inhalador con cámara)',
+          indication: 'Broncodilatación inmediata y alivio del broncoespasmo',
+          doseMg: isPediatric ? '2.5 mg Salbutamol + 250 mcg Ipratropio' : '5 mg Salbutamol + 500 mcg Ipratropio',
+          route: 'Inhalatoria / Nebulizada',
+          frequency: 'Cada 20 min en la 1ra hora (3 ciclos), luego cada 4-6h',
+          duration: 'Fase aguda',
+          notes: 'Nebulizar con oxígeno a 6-8 L/min.'
+        },
+        {
+          name: 'Hidrocortisona IV (o Metilprednisolona / Prednisona Oral)',
+          indication: 'Corticoide sistémico precoz para resolver inflamación bronquial',
+          doseMg: isPediatric ? `Metilprednisolona ${Math.round(weight * 1)} mg/kg IV` : 'Hidrocortisona 100-200 mg IV (o Prednisona 40-50 mg VO)',
+          route: 'Intravenosa / Oral',
+          frequency: 'Cada 6 a 8 horas (o dosis única diaria oral)',
+          duration: '5 a 7 días',
+          notes: 'No requiere pauta descendente si es ≤ 7 días.'
+        },
+        {
+          name: 'Sulfato de Magnesio 2g IV en infusión (si crisis severa)',
+          indication: 'Broncodilatador coadyuvante en crisis moderada-severa refractaria',
+          doseMg: isPediatric ? `${Math.round(weight * 50)} mg/kg IV (Máx 2g)` : '2 g IV en 100 mL SS 0.9% en 20 min',
+          route: 'Intravenosa en infusión lenta',
+          frequency: 'Dosis única',
+          duration: '20 minutos',
+          notes: 'Monitorear reflejos osteotendinosos y presión arterial.'
+        }
+      ];
+      conduct = 
+        `1. Posición sentada erguida (Fowler alta).\n` +
+        `2. Oxigenoterapia con meta SpO2 93% - 95% (94%-98% en niños).\n` +
+        `3. Medición seriada del Flujo Espiratorio Máximo (Peak Flow / PEF) antes y después de nebulizar.\n` +
+        `4. Reevaluación clínica a los 60 minutos de tratamiento intensivo.`;
+      tests = 
+        `• Flujometría / Peak Flow (PEF)\n` +
+        `• Gasometría arterial (si PEF < 50% o deterioro clínico)\n` +
+        `• Radiografía de Tórax (descartar neumotórax o neumomediastino si dolor súbito)`;
+      alarms = 
+        `🚨 Silencio auscultatorio ("tórax silente") sin sibilancias audibles\n` +
+        `🚨 Incapacidad para pronunciar frases completas o hablar en monosílabos\n` +
+        `🚨 Agotamiento ventilatorio, bradipnea o somnolencia (parada respiratoria inminente)\n` +
+        `🚨 Pulso paradójico > 20 mmHg o SpO2 < 90% a pesar de oxígeno`;
+
+    } else if (scaleId === 'gold_epoc') {
+      // GOLD EPOC
+      adaptedMeds = [
+        {
+          name: 'Salbutamol + Ipratropio (Nebulizaciones / MDI con aerocámara)',
+          indication: 'Broncodilatación combinada de acción rápida',
+          doseMg: '2.5 mg / 0.5 mg en 3 mL SS 0.9%',
+          route: 'Inhalatoria',
+          frequency: 'Cada 4 a 6 horas',
+          duration: '5 a 7 días',
+          notes: 'Utilizar aire comprimido para nebulizar si hay riesgo de hipercapnia.'
+        },
+        {
+          name: 'Prednisona 40 mg VO Tabletas',
+          indication: 'Corticoterapia sistémica de corta duración',
+          doseMg: '40 mg VO QD',
+          route: 'Vía Oral matutina',
+          frequency: 'Cada 24 horas',
+          duration: '5 días',
+          notes: 'No prolongar más allá de 5 días.'
+        },
+        {
+          name: !hasPenicillinAllergy ? 'Amoxicilina / Ácido Clavulánico 875/125 mg VO' : 'Azitromicina 500 mg VO',
+          indication: 'Antibioticoterapia guiada por Criterios de Anthonisen (esputo purulento + disnea)',
+          doseMg: '1 tableta VO BID',
+          route: 'Vía Oral',
+          frequency: 'Cada 12 horas',
+          duration: '5 a 7 días',
+          notes: 'Indicado si hay aumento de volumen y purulencia del esputo.'
+        }
+      ];
+      conduct = 
+        `1. Oxigenoterapia controlada con Venturi con meta SpO2 estricta de 88% a 92% para evitar narcosis por CO2.\n` +
+        `2. Fisioterapia respiratoria y técnicas de desobstrucción bronquial.\n` +
+        `3. Valorar ventilación mecánica no invasiva (VMNI / BiPAP) si acidosis respiratoria pH < 7.35 y PaCO2 > 45 mmHg.`;
+      tests = 
+        `• Gasometría Arterial basal\n` +
+        `• Radiografía de Tórax PA\n` +
+        `• Biometría Hemática con hematocrito\n` +
+        `• Cultivo de esputo y antibiograma si exacerbaciones frecuentes`;
+      alarms = 
+        `🚨 Acidosis respiratoria descompensada (pH < 7.25)\n` +
+        `🚨 Encefalopatía hipercápnica (asterixis, confusión, somnolencia marcada)\n` +
+        `🚨 Cianosis central progresiva o inestabilidad hemodinámica`;
+
+    } else if (scaleId === 'glasgow') {
+      // Glasgow Coma Scale
+      adaptedMeds = [
+        {
+          name: 'Solución Salina 0.9% IV (Evitar soluciones hipotónicas)',
+          indication: 'Mantenimiento de volemia normotensiva (Meta PAM ≥ 80 mmHg)',
+          doseMg: '1500 a 2000 mL / 24h',
+          route: 'Intravenosa',
+          frequency: 'Infusión continua',
+          duration: 'Fase aguda',
+          notes: 'CONTRAINDICADA Dextrosa 5% en agua pura o Ringer con lactato libre.'
+        },
+        {
+          name: 'Manitol al 20% IV (o Solución Salina Hipertónica al 3%)',
+          indication: 'Terapia osmótica urgente si signos de Herniación o Hipertensión Endocraneal',
+          doseMg: isPediatric ? `${(weight * 0.5).toFixed(1)} g/kg IV` : '0.5 a 1 g/kg IV en 20 minutos',
+          route: 'Intravenosa rápida',
+          frequency: 'SOS ante signos de HIC',
+          duration: 'Dosis rescate',
+          notes: 'Monitorear osmolaridad sérica (< 320 mOsm/L).'
+        },
+        {
+          name: 'Levetiracetam 1000 mg IV (o Fenitoína 18 mg/kg)',
+          indication: 'Profilaxis de crisis epilépticas postraumáticas tempranas en TCE moderado/grave',
+          doseMg: isPediatric ? `${Math.round(weight * 20)} mg IV` : '1000 mg IV bolo (luego 500mg BID)',
+          route: 'Intravenosa',
+          frequency: 'Cada 12 horas',
+          duration: '7 días',
+          notes: 'Administrar en 100 mL SS 0.9% en 15 min.'
+        }
+      ];
+      conduct = 
+        `1. SI GLASGOW ≤ 8: INTUBACIÓN OROTRAQUEAL INMEDIATA Y PROTECCIÓN DE VÍA AÉREA.\n` +
+        `2. Cabecera elevada a 30° en posición neutra para facilitar retorno venoso yugular.\n` +
+        `3. Evitar hipoxia (PaO2 < 60 mmHg) e hipotensión (PAS < 90 mmHg) — "Doctrina de las 2 H".\n` +
+        `4. Realizar TAC de Cráneo simple urgente sin contraste.\n` +
+        `5. Evaluación neurológica y pupilar cada 15 a 30 minutos.`;
+      tests = 
+        `• TAC Simple de Cráneo sin contraste (evaluación de hemorragia, desviación de línea media, cisternas basales)\n` +
+        `• Radiografía / TAC de Columna Cervical completa\n` +
+        `• Gasometría Arterial, Glucemia, Electrolitos séricos (Sodio estricto > 140 mEq/L)\n` +
+        `• Perfil de Coagulación y Hemograma`;
+      alarms = 
+        `🚨 Caída de ≥ 2 puntos en la escala de Glasgow\n` +
+        `🚨 Asimetría pupilar (anisocoria) o midriasis arreactiva unilateral\n` +
+        `🚨 Tríada de Cushing: Bradicardia + Hipertensión arterial + Bradipnea irregular\n` +
+        `🚨 Convulsiones o postura de descerebración/decorticación`;
+
+    } else if (scaleId === 'nihss') {
+      // NIHSS Código Ictus
+      adaptedMeds = [
+        {
+          name: 'Solución Salina 0.9% IV',
+          indication: 'Normovolemia estricta en ACV isquémico agudo',
+          doseMg: '1000 a 1500 mL / 24h',
+          route: 'Intravenosa continua',
+          frequency: 'Continua',
+          duration: 'Fase aguda',
+          notes: 'No administrar glucosa a menos que haya hipoglucemia.'
+        },
+        {
+          name: 'Ácido Acetilsalicílico 300 mg VO (si no candidato a trombolisis o tras 24h de rtPA)',
+          indication: 'Antiagregación plaquetaria precoz en ACV isquémico',
+          doseMg: '300 mg VO',
+          route: 'Vía Oral o por SNG si disfagia',
+          frequency: 'Cada 24 horas',
+          duration: 'Crónica',
+          notes: '🚨 Descartar hemorragia cerebral por TAC antes de dar aspirina.'
+        },
+        {
+          name: 'Labetalol 10-20 mg IV (o Nicardipino)',
+          indication: 'Control de PA si PAS > 185 mmHg o PAD > 110 mmHg para trombolisis',
+          doseMg: '10 mg IV en bolo lento',
+          route: 'Intravenosa',
+          frequency: 'SOS según cifras de PA',
+          duration: 'Fase aguda',
+          notes: 'No descender PA de forma brusca para preservar penumbra isquémica.'
+        }
+      ];
+      conduct = 
+        `1. ACTIVACIÓN INMEDIATA DE CÓDIGO ICTUS.\n` +
+        `2. TAC Craneal simple urgente en < 20 minutos para descartar hemorragia.\n` +
+        `3. Valorar Criterios de Trombolisis Intravenosa con Alteplasa (rtPA 0.9 mg/kg) si tiempo de inicio < 4.5 horas.\n` +
+        `4. Valorar Trombectomía Mecánica endovascular si oclusión de gran vaso en < 24 horas.\n` +
+        `5. Test de deglución previo a cualquier ingesta oral (prevenir broncoaspiración).\n` +
+        `6. Cabecera a 0°-30° y control estricto de temperatura (< 37.5°C) y glucemia (140-180 mg/dL).`;
+      tests = 
+        `• TAC Cerebral Simple + AngioTAC de Vasos Intra/Extracraneales\n` +
+        `• Glucemia capilar urgente (descartar simulador por hipoglucemia)\n` +
+        `• Biometría Hemática, Plaquetas y Tiempos de Coagulación (TP, TTP, INR)\n` +
+        `• Electrocardiograma de 12 derivaciones (descartar Fibrilación Auricular)`;
+      alarms = 
+        `🚨 Empeoramiento de escala NIHSS en ≥ 4 puntos\n` +
+        `🚨 Cefalea intensa con náuseas y vómitos o deterioro del nivel de conciencia (transformación hemorrágica)\n` +
+        `🚨 Crisis convulsivas de nuevo inicio`;
+
+    } else if (scaleId === 'abcd2') {
+      // ABCD2 Score
+      adaptedMeds = [
+        {
+          name: 'Ácido Acetilsalicílico 100 mg + Clopidogrel 75 mg (Doble Antiagregación DAPT)',
+          indication: 'Doble antiagregación intensiva durante los primeros 21 días post-AIT de alto riesgo',
+          doseMg: 'AAS 100 mg + Clopidogrel 75 mg VO QD',
+          route: 'Vía Oral',
+          frequency: 'Cada 24 horas tras el almuerzo',
+          duration: '21 días (luego monoterapia)',
+          notes: 'Reduce significativamente el riesgo de ACV recurrente precoz.'
+        },
+        {
+          name: 'Atorvastatina 80 mg Tabletas',
+          indication: 'Terapia con estatinas de alta intensidad',
+          doseMg: '80 mg VO',
+          route: 'Vía Oral nocturna',
+          frequency: 'Cada 24 horas',
+          duration: 'Crónica',
+          notes: 'Estabilización de placa carotídea/intracraneal.'
+        }
+      ];
+      conduct = 
+        `1. Hospitalización en Unidad de Ictus / Telemetría para estudio urgente (primeras 24-48 horas).\n` +
+        `2. Ecografía Doppler de Troncos Supraaórticos (Carotídeo y Vertebral) en < 24h.\n` +
+        `3. Monitorización cardiaca continua / Holter ECG para descartar FA paroxística.\n` +
+        `4. Control estricto de PA, glucemia y perfil lipídico.`;
+      tests = 
+        `• Resonancia Magnética Cerebral con secuencias de Difusión (DWI) / TAC Cerebral\n` +
+        `• Eco-Doppler Carotídeo y Transcraneal\n` +
+        `• ECG de 12 derivaciones y Holter de ritmo\n` +
+        `• Perfil Lipídico y Hemoglobina Glicosilada (HbA1c)`;
+      alarms = 
+        `🚨 Reaparición de déficit motor, sensitivo o alteración del lenguaje (afasia/disartria)\n` +
+        `🚨 Pérdida súbita de visión monocular (amaurosis fugaz)\n` +
+        `🚨 Pérdida de equilibrio o marcha atáxica`;
+
+    } else if (scaleId === 'air_score') {
+      // AIR Score
+      adaptedMeds = [
+        {
+          name: 'Solución Salina 0.9% / Ringer Lactato IV',
+          indication: 'Hidratación parenteral activa',
+          doseMg: '1500 a 2000 mL / 24h IV',
+          route: 'Intravenosa',
+          frequency: 'Continua',
+          duration: 'Hasta definición quirúrgica',
+          notes: 'Mantener diuresis clara.'
+        },
+        {
+          name: !hasPenicillinAllergy ? 'Ceftriaxona 2g IV + Metronidazol 500mg IV' : 'Ciprofloxacino 400mg IV + Metronidazol 500mg IV',
+          indication: 'Antibioticoterapia de amplio espectro para foco apendicular',
+          doseMg: isPediatric ? `Ceftriaxona ${Math.round(weight * 80)} mg/dosis IV` : 'Ceftriaxona 2g IV + Metronidazol 500mg IV c/8h',
+          route: 'Intravenosa',
+          frequency: 'Cada 12 a 24 horas',
+          duration: 'Según hallazgos quirúrgicos',
+          notes: 'Tomar muestras previas si es posible.'
+        }
+      ];
+      conduct = 
+        `1. NADA POR VÍA ORAL (NPO) estricto.\n` +
+        `2. Interconsulta urgente con Cirugía General.\n` +
+        `3. Ecografía o TAC de abdomen con contraste endovenoso.\n` +
+        `4. Reevaluación clínica abdominal seriada cada 2 a 4 horas.`;
+      tests = 
+        `• Biometría Hemática con leucograma y porcentaje de neutrófilos\n` +
+        `• Proteína C Reactiva (PCR cuantitativa)\n` +
+        `• Examen General de Orina y Ecografía Abdominal`;
+      alarms = 
+        `🚨 Aumento del dolor con defensa involuntaria o contractura abdominal\n` +
+        `🚨 Fiebre en picos > 38.5°C\n` +
+        `🚨 Taquicardia progresiva`;
+
+    } else if (scaleId === 'meld') {
+      // MELD Score
+      adaptedMeds = [
+        {
+          name: 'Albúmina Humana al 20% IV',
+          indication: 'Expansión oncótica en cirrosis descompensada y prevención de SHR',
+          doseMg: '1 g/kg de peso IV',
+          route: 'Intravenosa lenta',
+          frequency: 'Según indicación de paracentesis o SHR',
+          duration: 'Fase aguda',
+          notes: 'Administrar 8g de albúmina por cada litro de ascitis extraído > 5L.'
+        },
+        {
+          name: 'Lactulosa 20-30 mL VO + Rifaximina 550 mg VO',
+          indication: 'Control estricto de amonio y prevención de encefalopatía',
+          doseMg: 'Lactulosa 20 mL TID + Rifaximina 550 mg BID',
+          route: 'Vía Oral',
+          frequency: 'Cada 8 a 12 horas',
+          duration: 'Crónica',
+          notes: 'Meta: 2 a 3 evacuaciones blandas diarias.'
+        }
+      ];
+      conduct = 
+        `1. Monitorización de función renal (creatinina diaria) y balance hídrico estricto.\n` +
+        `2. Evitar estrictamente nefrotóxicos (AINEs, aminoglucósidos, contrastes yodados).\n` +
+        `3. Evaluación por Hepatología / Comité de Trasplante Hepático.\n` +
+        `4. Paracentesis diagnóstica si ascitis para descartar PBE.`;
+      tests = 
+        `• Bilirrubina Total y Fraccionada, Creatinina sérica, Sodio sérico e INR\n` +
+        `• Hemograma completo y Gasometría Venosa\n` +
+        `• Ecografía Doppler hepática y portal`;
+      alarms = 
+        `🚨 Elevación aguda de creatinina > 0.3 mg/dL en 48h (Síndrome Hepatorrenal)\n` +
+        `🚨 Confusión o somnolencia marcada (Encefalopatía Grado III-IV)\n` +
+        `🚨 Sangrado digestivo alto activo`;
+
+    } else if (scaleId === 'ranson') {
+      // Pancreatitis Aguda Ranson / BISAP
+      adaptedMeds = [
+        {
+          name: 'Solución Ringer Lactato IV (Fluidoterapia Dirigida por Metas)',
+          indication: 'Reanimación hídrica agresiva temprana en pancreatitis aguda',
+          doseMg: `${Math.round(weight * 20)} mL/kg en bolo, luego 200-250 mL/h`,
+          route: 'Intravenosa en infusión continua',
+          frequency: 'Primeras 24 horas',
+          duration: '24 a 48 horas',
+          notes: 'Monitorear hematocrito y nitrógeno ureico (BUN).'
+        },
+        {
+          name: 'Tramadol 50-100 mg IV / Paracetamol 1g IV (Analgesia Escalonada)',
+          indication: 'Alivio del dolor transfictivo en cinturón',
+          doseMg: '50 a 100 mg IV diluido en 100 mL SS 0.9%',
+          route: 'Intravenosa lenta en 20 min',
+          frequency: 'Cada 8 horas',
+          duration: '3 a 5 días',
+          notes: 'No contraindicado el uso de opioides en dolor intenso.'
+        },
+        {
+          name: 'Omeprazol 40 mg IV',
+          indication: 'Protección mucosa gástrica',
+          doseMg: '40 mg IV',
+          route: 'Intravenosa',
+          frequency: 'Cada 24 horas',
+          duration: 'Fase aguda',
+          notes: 'Diluir en SS 0.9%.'
+        }
+      ];
+      conduct = 
+        `1. Dieta enteral temprana tan pronto el dolor disminuya y no haya íleo (no mantener ayuno prolongado innecesario).\n` +
+        `2. Monitoreo estricto de diuresis horaria con sonda vesical (Meta > 0.5 mL/kg/h).\n` +
+        `3. NO usar antibióticos profilácticos de rutina salvo sospecha fundada de necrosis infectada o colangitis.\n` +
+        `4. Ecografía Abdominal para descartar origen biliar (litiasis / coledocolitiasis).`;
+      tests = 
+        `• Amilasa y Lipasa sérica (Lipasa > 3 veces límite superior)\n` +
+        `• BUN, Creatinina, Glucosa, Calcio sérico, Hematocrito, LDH, TGO y Bilirrubinas\n` +
+        `• Gasometría Arterial (PaO2 / exceso de bases)\n` +
+        `• Ecografía Abdominal y TAC de Abdomen con Contraste (a las 72-96h si no mejoría)`;
+      alarms = 
+        `🚨 BUN > 20 mg/dL o ascenso progresivo (predictor de fallo multiorgánico)\n` +
+        `🚨 Oliguria (< 0.5 mL/kg/h) persistente a pesar de fluidoterapia\n` +
+        `🚨 PaO2 < 60 mmHg o taquipnea severa (SDRA asociado a pancreatitis)\n` +
+        `🚨 Signos de Cullen o Grey-Turner (pancreatitis necrohemorrágica)`;
+
+    } else if (scaleId === 'rockall') {
+      // Rockall / Glasgow-Blatchford HDA
+      adaptedMeds = [
+        {
+          name: 'Omeprazol 80 mg IV en bolo, seguido de infusión 8 mg/hora',
+          indication: 'Supresión ácida gástrica profunda para estabilización de coágulo en úlcera péptica',
+          doseMg: '80 mg IV bolo inicial + 8 mg/h infusión continua por 72h',
+          route: 'Intravenosa por bomba',
+          frequency: 'Infusión continua',
+          duration: '72 horas tras hemostasia endoscópica',
+          notes: 'Mantener pH intragástrico > 6.0.'
+        },
+        {
+          name: 'Cristaloides Isotónicos (Solución Salina 0.9% / Ringer Lactato)',
+          indication: 'Reanimación volumétrica y restauración hemodinámica',
+          doseMg: '1000 a 2000 mL IV rápido',
+          route: 'Intravenosa por 2 vías 16G',
+          frequency: 'Según estabilidad hemodinámica',
+          duration: 'Fase aguda',
+          notes: 'Meta PAS > 100 mmHg y FC < 100 lpm.'
+        },
+        {
+          name: 'Concentrado de Hematíes (Transfusión restrictiva)',
+          indication: 'Restauración de transporte de oxígeno si Hb < 7 g/dL (o < 8 g/dL con cardiopatía)',
+          doseMg: '1 a 2 unidades de Glóbulos Rojos Empacados',
+          route: 'Intravenosa',
+          frequency: 'Según hematocrito y hemoglobina',
+          duration: 'Fase aguda',
+          notes: 'Estrategia transfusional restrictiva demostró menor mortalidad.'
+        }
+      ];
+      conduct = 
+        `1. NADA POR VÍA ORAL (NPO) Y REPOSO ABSOLUTO.\n` +
+        `2. Endoscopía Digestiva Alta (EDA) de urgencia dentro de las primeras 24 horas (primeras 12h si inestabilidad).\n` +
+        `3. Canalizar 2 vías venosas periféricas de grueso calibre (16G o 18G).\n` +
+        `4. Sonda nasogástrica opcional para descompresión o lavado si sospecha de sangrado masivo activo.`;
+      tests = 
+        `• Biometría Hemática seriada cada 6-8 horas (Hemoglobina y Hematocrito)\n` +
+        `• Tiempos de Coagulación (TP, TTP, INR) y Grupo Sanguíneo + Rh con pruebas cruzadas\n` +
+        `• Química Sanguínea (BUN, Urea, Creatinina, Electrolitos séricos)\n` +
+        `• Endoscopía Digestiva Alta diagnóstica y terapéutica`;
+      alarms = 
+        `🚨 Inestabilidad hemodinámica persistente (Hipotensión, taquicardia o síncope)\n` +
+        `🚨 Hematemesis roja rutilante activa en pozos abundantes\n` +
+        `🚨 Caída de hemoglobina > 2 g/dL en controles seriados\n` +
+        `🚨 Rectorragia masiva con compromiso hemodinámico`;
+
+    } else if (scaleId === 'apgar') {
+      // APGAR Score
+      adaptedMeds = [
+        {
+          name: 'Oxígeno a flujo libre / Ventilación con Presión Positiva (VPP)',
+          indication: 'Soporte ventilatorio neonatal inmediato si FC < 100 lpm o apnea',
+          doseMg: 'FiO2 21% en término (o 30% en prematuro)',
+          route: 'Mascarilla facial con bolsa autoinflable / Neopuff',
+          frequency: '40 a 60 ventilaciones / minuto',
+          duration: 'Hasta FC > 100 lpm y respiración espontánea regular',
+          notes: '🚨 Monitorear FC mediante pulsioximetría preductal en muñeca derecha.'
+        }
+      ];
+      conduct = 
+        `1. SECADO INMEDIATO Y RETIRADA DE CAMPOS HÚMEDOS PARA PREVENIR HIPOTERMIA.\n` +
+        `2. Posición de olfateo de la cabeza para abrir la vía aérea.\n` +
+        `3. Estimulación táctil frotando suavemente la espalda o plantas de los pies.\n` +
+        `4. Evaluación del Score de APGAR al minuto 1 y al minuto 5 (y cada 5 min si APGAR < 7 hasta los 20 min).\n` +
+        `5. Pinzamiento oportuno del cordón umbilical (1 a 3 min) si recién nacido vigoroso.`;
+      tests = 
+        `• Gasometría de sangre de cordón umbilical (pH, exceso de base)\n` +
+        `• Glucemia capilar a los 30-60 minutos de vida\n` +
+        `• Pulsioximetría preductal continua`;
+      alarms = 
+        `🚨 APGAR < 4 al minuto 1 o < 7 a los 5 minutos\n` +
+        `🚨 Bradicardia neonatal FC < 100 lpm (iniciar VPP de inmediato) o FC < 60 lpm (iniciar compresiones torácicas + Adrenalina)\n` +
+        `🚨 Apnea o respiración jadeante (gasping)\n` +
+        `🚨 Palidez extrema o cianosis central persistente`;
+
+    } else if (scaleId === 'wood_downes') {
+      // Wood-Downes Bronquiolitis
+      adaptedMeds = [
+        {
+          name: 'Solución Salina Hipertónica al 3% Nebulizada (o Salina 0.9%)',
+          indication: 'Favorece aclaramiento mucociliar y reduce edema de submucosa bronquiolar',
+          doseMg: '3 a 4 mL de SS al 3% por nebulización',
+          route: 'Inhalatoria',
+          frequency: 'Cada 6 a 8 horas',
+          duration: '3 a 5 días',
+          notes: 'Nebulizar con flujo de O2 a 6-8 L/min.'
+        },
+        {
+          name: 'Solución Salina 0.9% Gotas Nasales + Aspiración suave',
+          indication: 'Permeabilización nasofaríngea',
+          doseMg: '2 a 3 gotas en cada fosa nasal',
+          route: 'Nasal',
+          frequency: 'Antes de cada toma o alimentación',
+          duration: 'Durante el cuadro agudo',
+          notes: 'Alivio de la resistencia de vía aérea superior.'
+        },
+        {
+          name: 'Paracetamol Gotas / Jarabe 100-120 mg/5mL',
+          indication: 'Control térmico y confort',
+          doseMg: `${Math.round(weight * 15)} mg/dosis`,
+          route: 'Vía Oral',
+          frequency: 'Cada 6 a 8 horas con T° > 37.5°C',
+          duration: '3 días',
+          notes: 'No administrar antibióticos ni corticoides de rutina en bronquiolitis viral típica.'
+        }
+      ];
+      conduct = 
+        `1. Oxigenoterapia con cánula nasal para mantener SpO2 ≥ 92% (o ≥ 90% en sueño tranquilo).\n` +
+        `2. Posición semifowler a 30° con ligera hiperextensión cervical.\n` +
+        `3. Tomas fraccionadas de leche materna / fórmula en volúmenes pequeños para prevenir vómitos y broncoaspiración.\n` +
+        `4. Suspender alimentación oral y colocar SNG o líquidos IV si FR > 60 rpm o distrés severo.`;
+      tests = 
+        `• Panel molecular o test rápido viral en exudado nasofaríngeo (VSR, Influenza, Rinovirus)\n` +
+        `• Radiografía de Tórax AP (solo si sospecha de complicaciones como atelectasia o neumotórax)\n` +
+        `• Pulsioximetría continua`;
+      alarms = 
+        `🚨 Score de Wood-Downes ≥ 4 (Distrés moderado a severo)\n` +
+        `🚨 Pausas de apnea (> 20 segundos) o episodios de cianosis\n` +
+        `🚨 Rechazo alimentario (> 50% de las tomas en 24 horas) o signos de deshidratación\n` +
+        `🚨 Tiraje subcostal o intercostal marcado con aleteo nasal y quejido`;
+
+    } else if (scaleId === 'westley') {
+      // Westley Crup / Laringotraqueítis
+      adaptedMeds = [
+        {
+          name: 'Dexametasona 0.6 mg/kg Vía Oral (o Intramuscular / Intravenosa)',
+          indication: 'Reducción rápida y duradera del edema laríngeo subglótico',
+          doseMg: `${(weight * 0.6).toFixed(1)} mg (Dosis única, Máx 16 mg)`,
+          route: 'Vía Oral (o IM / IV)',
+          frequency: 'Dosis Única',
+          duration: 'Dosis única',
+          notes: 'Eficaz en crup leve, moderado y severo. Inicio de acción en 1-2 horas.'
+        },
+        {
+          name: 'Adrenalina / Epinefrina 1:1000 Nebulizada (L-Adrenalina)',
+          indication: 'Vasoconstricción de mucosa subglótica en crup moderado a grave (Westley ≥ 3)',
+          doseMg: isPediatric ? `${Math.min(5, Math.max(2, weight * 0.5))} mL de Adrenalina 1:1000 pura en 3 mL SS 0.9%` : '5 mL en 3 mL SS',
+          route: 'Inhalatoria nebulizada con flujo O2 a 6-8 L/min',
+          frequency: 'SOS (repetir a los 20 min si persiste estridor en reposo)',
+          duration: 'Fase aguda',
+          notes: '🚨 Observación mínima de 2 a 4 horas por posible efecto rebote tras 2h.'
+        },
+        {
+          name: 'Oxígeno humidificado y frío',
+          indication: 'Alivio sintomático y mantenimiento de SpO2 ≥ 95%',
+          doseMg: '2 a 4 L/min',
+          route: 'Cánula o mascarilla',
+          frequency: 'Continua',
+          duration: 'Hasta cese de estridor en reposo',
+          notes: 'Mantener al niño en brazos de sus padres para evitar llanto y agitación.'
+        }
+      ];
+      conduct = 
+        `1. EVITAR PROCEDIMIENTOS QUE GENEREN ANSIEDAD O LLANTO EN EL NIÑO (no forzar examen orofaríngeo con bajalenguas).\n` +
+        `2. Posición en brazos de la madre/padre en posición incorporada.\n` +
+        `3. Observación clínica durante al menos 2 a 4 horas tras la administración de adrenalina nebulizada.\n` +
+        `4. Criterios de alta: Ausencia de estridor en reposo, buen murmullo vesicular, coloración normal, ingesta oral tolerada.`;
+      tests = 
+        `• Radiografía de cuello en proyección AP (Signo de la aguja / campanario) — solo en caso de duda diagnóstica\n` +
+        `• Pulsioximetría continua`;
+      alarms = 
+        `🚨 Estridor inspiratorio y espiratorio en reposo audible sin estetoscopio\n` +
+        `🚨 Tiraje supraesternal, supraclavicular y aleteo nasal intenso\n` +
+        `🚨 Letargia, somnolencia o agitación marcada por hipoxia\n` +
+        `🚨 Palidez o cianosis central`;
+
+    } else if (scaleId === 'kdigo') {
+      // KDIGO / AKI
+      adaptedMeds = [
+        {
+          name: 'Solución Salina 0.9% / Ringer Lactato IV (Optimización Hídrica)',
+          indication: 'Corrección de volumen en lesión renal prerrenal',
+          doseMg: '1000 a 1500 mL IV (titular según volemia)',
+          route: 'Intravenosa',
+          frequency: 'Continua',
+          duration: 'Según balance',
+          notes: 'Evitar sobrecarga hídrica en oliguria anúrica.'
+        },
+        {
+          name: 'Suspensión estricta de Fármacos Nefrotóxicos',
+          indication: 'Prevención de progresión del daño tubular renal',
+          doseMg: 'N/A',
+          route: 'Suspensión',
+          frequency: 'Inmediata',
+          duration: 'Hasta recuperación del Filtrado Glomerular',
+          notes: 'Suspender AINEs, IECA/ARA-II, Aminoglucósidos, Vancomicina y contrastes yodados.'
+        }
+      ];
+      conduct = 
+        `1. Colocación de sonda vesical con medición horaria estricta de diuresis (Meta > 0.5 mL/kg/h).\n` +
+        `2. Ajuste riguroso de posología de todos los medicamentos según aclaramiento de creatinina (Cockcroft-Gault / CKD-EPI).\n` +
+        `3. Control diario de peso matutino y balance hídrico neutro.\n` +
+        `4. Criterios de Terapia de Reemplazo Renal de Urgencia (AEIOU): Acidosis refractaria, Electrolitos (K > 6.5 mEq/L), Intoxicaciones, Overload (Edema pulmonar refractario), Uremia sintomática (pericarditis/encefalopatía).`;
+      tests = 
+        `• Creatinina sérica y Urea / BUN seriados diarios\n` +
+        `• Electrolitos séricos (Potasio, Sodio, Calcio, Fósforo, Cloro)\n` +
+        `• Gasometría Venosa o Arterial (evaluar acidosis metabólica)\n` +
+        `• Examen General de Orina con sedimento urinario y Fracción de Excreción de Sodio (FeNa)\n` +
+        `• Ecografía Renal y de Vías Urinarias (descartar uropatía obstructiva / AKI postrenal)`;
+      alarms = 
+        `🚨 Anuria completa (< 100 mL en 24 horas) u oliguria persistente\n` +
+        `🚨 Potasio sérico > 6.0 mEq/L con cambios electrocardiográficos (ondas T picudas)\n` +
+        `🚨 Signos de sobrecarga de volumen: crepitantes bibasales, ingurgitación yugular o disnea\n` +
+        `🚨 Asterixis, frote pericárdico o somnolencia urémica`;
+
+    } else if (scaleId === 'hyperkalemia') {
+      // Hiperpotasemia Aguda Severa
+      adaptedMeds = [
+        {
+          name: 'Gluconato de Calcio al 10% IV (Estabilizador de Membrana Cardíaca)',
+          indication: 'Estabilización inmediata del potencial de membrana de miocardiocitos (antagonismo de toxicidad cardíaca)',
+          doseMg: isPediatric ? `${(weight * 0.5).toFixed(1)} mL/kg IV` : '10 a 20 mL (1 a 2 ampollas al 10%) en 5-10 minutos IV',
+          route: 'Intravenosa lenta en 5 a 10 minutos',
+          frequency: 'Inmediata (repetir en 10 min si persisten cambios ECG)',
+          duration: 'Inicio en 1-3 min, duración 30-60 min',
+          notes: '🚨 NO desciende los niveles de potasio; solo protege el corazón de arritmias malignas (TV/FV).'
+        },
+        {
+          name: 'Insulina Rápida (10 UI) + Solución Dextrosa al 10% (o al 33%) 50 mL IV',
+          indication: 'Desplazamiento intracelular de potasio mediante activación de bomba Na+/K+ ATPasa',
+          doseMg: isPediatric ? `0.1 UI/kg Insulina Rápida + 2 mL/kg Dextrosa 10%` : '10 UI Insulina Regular IV + 50 mL Dextrosa al 33% (o 250 mL Dextrosa 10%) en 30 min',
+          route: 'Intravenosa en infusión',
+          frequency: 'En 30 minutos',
+          duration: 'Efecto inicia en 15-30 min, pico en 60 min',
+          notes: 'Monitorear glucemia capilar horaria para prevenir hipoglucemia.'
+        },
+        {
+          name: 'Salbutamol Nebulizado (10 a 20 mg)',
+          indication: 'Estimulación beta-2 adrenérgica para redistribución intracelular de potasio',
+          doseMg: isPediatric ? '2.5 a 5 mg nebulizado' : '10 a 20 mg (2 a 4 mL de solución 5 mg/mL en 3 mL SS 0.9%)',
+          route: 'Inhalatoria nebulizada',
+          frequency: 'Cada 2 horas si necesario',
+          duration: '30 a 60 minutos',
+          notes: 'Sinergia con insulina.'
+        },
+        {
+          name: 'Furosemida 40-80 mg IV (o Resinas de Intercambio Catiónico / Diálisis)',
+          indication: 'Eliminación corporal definitiva de potasio por vía renal',
+          doseMg: '40 a 80 mg IV bolo',
+          route: 'Intravenosa',
+          frequency: 'Cada 12 horas si hay diuresis conservada',
+          duration: 'Fase aguda',
+          notes: 'Ineficaz si el paciente está anúrico; en anuria proceder a Hemodiálisis de urgencia.'
+        }
+      ];
+      conduct = 
+        `1. MONITORIZACIÓN ELECTROCARDIOGRÁFICA CONTINUA EN SALA DE REANIMACIÓN / SHOCK ROOM.\n` +
+        `2. Realizar ECG de 12 derivaciones inmediato y tras cada intervención farmacológica.\n` +
+        `3. Suspender todos los aportes exógenos de potasio (sueros con KCl, fármacos ahorradores de K como espironolactona, IECA/ARA-II).\n` +
+        `4. Contactar con Nefrología para Hemodiálisis de Urgencia si hiperpotasemia refractaria (K > 6.5 mEq/L) o anuria.`;
+      tests = 
+        `• Potasio sérico urgente y Gasometría (repetir cada 1 a 2 horas)\n` +
+        `• Electrocardiograma de 12 derivaciones seriado (ondas T picudas, ensanchamiento de QRS, pérdida de onda P, ritmo sinusal sinusoidal)\n` +
+        `• Glucemia capilar horaria x 4 horas\n` +
+        `• Función Renal (Creatinina, Urea)`;
+      alarms = 
+        `🚨 Ensanchamiento del complejo QRS (> 120 ms) o ritmo sinusoidal en ECG (riesgo inminente de parada cardíaca)\n` +
+        `🚨 Bradicardia severa con bloqueo auriculoventricular avanzado\n` +
+        `🚨 Debilidad muscular progresiva o parálisis flácida ascendente\n` +
+        `🚨 Hipoglucemia tras administración de insulina`;
+
+    } else if (scaleId === 'parkland') {
+      // Parkland Grandes Quemados
+      const scqTotal = 20; // 20% estimado estándar
+      const totalFluidsParkland = Math.round(4 * weight * scqTotal);
+      const first8h = Math.round(totalFluidsParkland / 2);
+      const next16h = Math.round(totalFluidsParkland / 2);
+
+      adaptedMeds = [
+        {
+          name: 'Solución Ringer Lactato IV (Fórmula de Parkland: 4 mL x kg x % SCTQ)',
+          indication: 'Reposición masiva de volumen en shock por quemaduras térmicas/químicas',
+          doseMg: `${totalFluidsParkland} mL en 24h (${first8h} mL en primeras 8h desde el accidente, ${next16h} mL en sigs 16h)`,
+          volumeMl: `${totalFluidsParkland} mL / 24h`,
+          route: 'Intravenosa por 2 vías periféricas de gran calibre en piel no quemada',
+          frequency: 'Infusión guiada por diuresis horaria',
+          duration: 'Primeras 24 horas',
+          notes: 'Meta estricta: Diuresis 0.5 a 1.0 mL/kg/h en adultos (1.0 a 1.5 mL/kg/h en niños).'
+        },
+        {
+          name: 'Sulfadiazina de Plata al 1% Crema / Apósitos estériles hidrocoloides',
+          indication: 'Antisepsia tópica de lesiones dérmicas y prevención de infección local',
+          doseMg: 'Capa de 2 a 3 mm',
+          route: 'Tópica cutánea',
+          frequency: 'Cada 12 a 24 horas tras curación estéril',
+          duration: 'Hasta reepitelización / injerto',
+          notes: 'No aplicar en cara ni en pacientes con alergia a sulfas.'
+        },
+        {
+          name: 'Morfina 2-5 mg IV / Fentanilo (Analgesia Potente Escalonada)',
+          indication: 'Control del dolor agudo severo por quemaduras',
+          doseMg: isPediatric ? `${(weight * 0.05).toFixed(2)} mg Morfina IV` : '3 a 5 mg IV lento',
+          route: 'Intravenosa',
+          frequency: 'Cada 4 a 6 horas según EVA',
+          duration: 'Fase aguda',
+          notes: 'Monitorear patrón ventilatorio.'
+        },
+        {
+          name: 'Omeprazol 40 mg IV',
+          indication: 'Profilaxis de Úlcera de Curling (úlcera por estrés en grandes quemados)',
+          doseMg: '40 mg IV',
+          route: 'Intravenosa',
+          frequency: 'Cada 24 horas',
+          duration: 'Durante estancia crítica',
+          notes: 'Previene sangrado digestivo alto.'
+        }
+      ];
+      conduct = 
+        `1. TRASLADO INMEDIATO A UNIDAD DE QUEMADOS CRÍTICOS / UCI.\n` +
+        `2. Vía aérea: Intubación precoz si quemadura por inhalación (vibrisas nasales quemadas, esputo carbonáceo, quemaduras faciales, estridor).\n` +
+        `3. Sonda vesical Foley con medición horaria estricta de diuresis.\n` +
+        `4. Sonda nasogástrica para descompresión gástrica si SCTQ > 20%.\n` +
+        `5. Profilaxis antitetánica según estado vacunal.\n` +
+        `6. Termorregulación estricta en ambiente tibio (> 28°C) para evitar hipotermia.`;
+      tests = 
+        `• Gasometría Arterial con niveles de Carboxihemoglobina (COHb) si sospecha de inhalación de humo\n` +
+        `• Biometría Hemática, Plaquetas y Tiempos de Coagulación\n` +
+        `• Electrolitos séricos (Sodio, Potasio), Urea, Creatinina, Proteínas totales y Albúmina\n` +
+        `• CPK total y Mioglobina en orina si quemaduras eléctricas (descartar rabdomiólisis)\n` +
+        `• Radiografía de Tórax PA`;
+      alarms = 
+        `🚨 Oliguria (< 0.5 mL/kg/h en adultos o < 1 mL/kg/h en niños) a pesar de Parkland\n` +
+        `🚨 Orina color coñac / oscura con mioglobinuria franca (riesgo de NTA)\n` +
+        `🚨 Síndrome compartimental en quemaduras circunferenciales de extremidades o tórax (requiere escarotomía descompresiva urgente)\n` +
+        `🚨 Estridor laríngeo progresivo o disfonía (cierre inminente de vía aérea)`;
+
+    } else if (scaleId === 'rts') {
+      // Revised Trauma Score (RTS Politrauma)
+      adaptedMeds = [
+        {
+          name: 'Cristaloides Isotónicos Tibios (Ringer Lactato o SS 0.9%)',
+          indication: 'Reanimación inicial restrictiva (Hipotensión permisiva: Meta PAS 80-90 mmHg en trauma no craneal)',
+          doseMg: '1000 mL IV en 10-15 min',
+          route: 'Intravenosa por 2 vías 14G o 16G',
+          frequency: 'En bolo tibio',
+          duration: 'Reevaluación de respuesta hemodinámica',
+          notes: 'Evitar sobrehidratación dilucional y coagulopatía de consumo.'
+        },
+        {
+          name: 'Ácido Tranexámico 1 g IV en 100 mL SS 0.9% en 10 min (Protocolo CRASH-2)',
+          indication: 'Antifibrinolítico precoz para control de hemorragia traumática masiva',
+          doseMg: '1 g IV bolo en 10 min, seguido de infusión de 1 g en 8 horas',
+          route: 'Intravenosa',
+          frequency: 'En primeras 3 horas del trauma',
+          duration: '8 horas',
+          notes: '🚨 Administrar obligatoriamente dentro de las primeras 3 horas del evento.'
+        },
+        {
+          name: 'Protocolo de Transfusión Masiva (Relación 1:1:1)',
+          indication: 'Concentrado de Hematíes + Plasma Fresco Congelado + Plaquetas',
+          doseMg: '1 Unidad GR + 1 Unidad PFC + 1 Pool Plaquetas',
+          route: 'Intravenosa por infundidor rápido con calentador',
+          frequency: 'Según shock hemorrágico y pérdida estimada',
+          duration: 'Fase de reanimación',
+          notes: 'Prevención de la Tríada Mortal: Hipotermia + Acidosis + Coagulopatía.'
+        }
+      ];
+      conduct = 
+        `1. APLICACIÓN PROTOCOLO ATLS (A - B - C - D - E).\n` +
+        `2. A: Control estricto de vía aérea con inmovilización bimanual de columna cervical y colocación de collarín rígido.\n` +
+        `3. B: Ventilación y oxigenación (descartar neumotórax a tensión -> descompresión torácica con aguja/catéter 14G en 2do espacio intercostal).\n` +
+        `4. C: Control de hemorragias externas exanguinantes con torniquete o empaquetamiento hemostático + 2 accesos venosos periféricos.\n` +
+        `5. D: Examen neurológico con Glasgow y reactividad pupilar.\n` +
+        `6. E: Exposición completa del paciente y prevención activa de hipotermia con mantas térmicas.\n` +
+        `7. Ecografía FAST (Focused Assessment with Sonography in Trauma) inmediata.`;
+      tests = 
+        `• Ecografía e-FAST (espacio hepatorrenal de Morrison, esplenorrenal, pélvico, pericárdico y pleural bilateral)\n` +
+        `• Serie Radiológica de Trauma: Tórax AP, Pelvis AP y Columna Cervical lateral (o Pan-TAC corporal total si estabilidad)\n` +
+        `• Biometría Hemática, Grupo Sanguíneo y Factor Rh con pruebas cruzadas urgentes\n` +
+        `• Tiempos de Coagulación (TP, TTP, Fibrinógeno), Lactato y Gasometría Arterial`;
+      alarms = 
+        `🚨 Inestabilidad hemodinámica persistente refractaria a transfusión inicial (indicación de Laparotomía exploradora de control de daños)\n` +
+        `🚨 Hipoventilación unilateral con timpanismo y choque (Neumotórax a Tensión)\n` +
+        `🚨 Disminución de 2 o más puntos en el Glasgow o anisocoria de novo\n` +
+        `🚨 Inestabilidad del anillo pélvico con sangrado retroperitoneal masivo`;
     }
 
     setMedications(adaptedMeds);
@@ -1083,6 +2061,36 @@ export default function PatientTreatmentSection({
 
   const activeScaleObj = CLINICAL_SCALES.find(s => s.id === selectedScale);
 
+  const filteredClinicalScales = CLINICAL_SCALES.filter(scale => {
+    if (scale.id === 'none') {
+      if (scaleSearchQuery.trim()) {
+        const q = scaleSearchQuery.toLowerCase().trim();
+        return scale.name.toLowerCase().includes(q) || 'estandar'.includes(q) || 'ninguna'.includes(q) || 'base'.includes(q);
+      }
+      return scaleCategoryFilter === 'TODOS';
+    }
+
+    // Category filter
+    if (scaleCategoryFilter !== 'TODOS') {
+      const activeCatObj = SCALE_CATEGORIES.find(c => c.id === scaleCategoryFilter);
+      if (activeCatObj?.categories && !activeCatObj.categories.includes(scale.category)) {
+        return false;
+      }
+    }
+
+    // Search filter
+    if (scaleSearchQuery.trim()) {
+      const q = scaleSearchQuery.toLowerCase().trim();
+      const matchName = scale.name.toLowerCase().includes(q);
+      const matchTag = scale.tag.toLowerCase().includes(q);
+      const matchCat = scale.category.toLowerCase().includes(q);
+      const matchDesc = scale.description.toLowerCase().includes(q);
+      return matchName || matchTag || matchCat || matchDesc;
+    }
+
+    return true;
+  });
+
   return (
     <div className="space-y-4 sm:space-y-6 text-slate-100 animate-fade-in pb-8">
       
@@ -1238,20 +2246,22 @@ export default function PatientTreatmentSection({
 
       </div>
 
-      {/* 3. ESCALAS MÉDICAS INTERACTIVAS SELECTOR (Prompt Mandate: Selección Opcional que Ajusta el Tratamiento) */}
+      {/* 3. ESCALAS MÉDICAS & SCORES CLÍNICOS (Con Barra de Búsqueda y Filtros Integrados) */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-lg space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Stethoscope className="w-5 h-5 text-brand-teal shrink-0" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-brand-teal/10 border border-brand-teal/30 flex items-center justify-center shrink-0">
+              <Stethoscope className="w-4 h-4 text-brand-teal" />
+            </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <h4 className="text-sm font-bold text-white">Escalas Médicas & Scores Clínicos</h4>
-                <span className="text-[10px] bg-slate-800 text-brand-teal px-1.5 py-0.2 rounded font-bold font-mono">
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs sm:text-sm font-bold text-white">Escalas Médicas & Scores Clínicos</h4>
+                <span className="text-[10px] bg-slate-800 text-brand-teal px-2 py-0.5 rounded-full font-bold font-mono border border-slate-700">
                   OPCIONAL
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Seleccione una escala médica para adaptar y personalizar automáticamente el plan terapéutico
+                Seleccione o busque una escala médica para adaptar automáticamente el plan terapéutico
               </p>
             </div>
           </div>
@@ -1261,7 +2271,7 @@ export default function PatientTreatmentSection({
             <button
               type="button"
               onClick={() => applyScaleAdaptation('none')}
-              className="self-start sm:self-center bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+              className="self-start sm:self-center bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
               title="Quitar escala y volver al esquema estándar"
             >
               <X className="w-3.5 h-3.5 text-rose-400" />
@@ -1270,42 +2280,212 @@ export default function PatientTreatmentSection({
           )}
         </div>
 
-        {/* Scales Chips Grid (Mobile-First scrollable / wrapping) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-1">
-          {CLINICAL_SCALES.map((scale) => {
-            const isSelected = selectedScale === scale.id;
-            return (
-              <button
-                key={scale.id}
-                type="button"
-                onClick={() => applyScaleAdaptation(scale.id)}
-                className={`p-2 rounded-xl text-left transition-all cursor-pointer flex flex-col justify-between gap-1 border ${
-                  isSelected
-                    ? 'bg-brand-teal/20 border-brand-teal text-white shadow-md shadow-brand-teal/10 font-bold ring-1 ring-brand-teal'
-                    : 'bg-slate-950/80 hover:bg-slate-800 border-slate-800 text-slate-300'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${scale.badgeColor}`}>
-                    {scale.tag}
+        {/* SEARCHABLE INTERACTIVE DROPDOWN SELECTOR */}
+        <div className="relative" ref={scaleDropdownRef}>
+          {/* Main Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setIsScaleDropdownOpen(!isScaleDropdownOpen)}
+            className={`w-full bg-slate-950 text-left border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-all cursor-pointer flex items-center justify-between gap-2 shadow-inner ${
+              isScaleDropdownOpen
+                ? 'border-brand-teal ring-2 ring-brand-teal/30 bg-slate-900'
+                : 'border-slate-700 hover:border-brand-teal/60 hover:bg-slate-900/60'
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                selectedScale !== 'none' ? 'bg-brand-teal/20 text-brand-teal border border-brand-teal/40' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {selectedScale !== 'none' ? <Zap className="w-3.5 h-3.5 animate-pulse" /> : <Stethoscope className="w-3.5 h-3.5" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                {selectedScale !== 'none' && activeScaleObj ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-white font-bold text-xs sm:text-sm truncate">{activeScaleObj.name}</span>
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${activeScaleObj.badgeColor}`}>
+                      {activeScaleObj.tag}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-slate-300 font-medium text-xs sm:text-sm truncate">
+                    📋 Ninguna — Esquema Estándar (Base por Signos Vitales)
                   </span>
-                  {isSelected && <Zap className="w-3.5 h-3.5 text-brand-teal shrink-0 animate-pulse" />}
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-slate-400 shrink-0">
+              <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">Buscar / Filtrar</span>
+              <Search className="w-3.5 h-3.5 text-brand-teal" />
+              {isScaleDropdownOpen ? <ChevronUp className="w-4 h-4 text-slate-300" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </div>
+          </button>
+
+          {/* Searchable Dropdown Menu Popover */}
+          {isScaleDropdownOpen && (
+            <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden animate-fade-in divide-y divide-slate-800">
+              {/* 1. Integrated Search Bar Header */}
+              <div className="p-2.5 sm:p-3 bg-slate-900/95 space-y-2">
+                <div className="relative flex items-center">
+                  <Search className="w-4 h-4 text-brand-teal absolute left-3 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={scaleSearchQuery}
+                    onChange={(e) => setScaleSearchQuery(e.target.value)}
+                    placeholder="Buscar escala médica por nombre, patología o sigla (ej. CURB-65, Sepsis, Wells, Alvarado, GINA)..."
+                    className="w-full bg-slate-950 text-white placeholder-slate-400 text-xs sm:text-sm pl-9 pr-8 py-2 rounded-xl border border-slate-700 focus:border-brand-teal focus:ring-1 focus:ring-brand-teal focus:outline-none transition-all"
+                    autoFocus
+                  />
+                  {scaleSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setScaleSearchQuery('')}
+                      className="absolute right-2.5 p-1 text-slate-400 hover:text-white cursor-pointer"
+                      title="Limpiar búsqueda"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
-                <span className="text-[11px] font-bold leading-tight block line-clamp-2">
-                  {scale.name}
-                </span>
-              </button>
-            );
-          })}
+
+                {/* 2. Category Quick Filters */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-[10px] scrollbar-none">
+                  {SCALE_CATEGORIES.map((cat) => {
+                    const isActive = scaleCategoryFilter === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setScaleCategoryFilter(cat.id)}
+                        className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                          isActive
+                            ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-sm'
+                            : 'bg-slate-950 text-slate-300 hover:bg-slate-800 border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Filtered Options List */}
+              <div className="max-h-72 overflow-y-auto p-1.5 sm:p-2 space-y-1">
+                {/* Standard Base Option */}
+                {(!scaleSearchQuery.trim() || 'ninguna esquema base estandar'.includes(scaleSearchQuery.toLowerCase())) && scaleCategoryFilter === 'TODOS' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      applyScaleAdaptation('none');
+                      setIsScaleDropdownOpen(false);
+                    }}
+                    className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 border ${
+                      selectedScale === 'none'
+                        ? 'bg-brand-teal/15 border-brand-teal/50 ring-1 ring-brand-teal/30 text-white'
+                        : 'bg-slate-900/40 hover:bg-slate-900 border-transparent text-slate-300'
+                    }`}
+                  >
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs sm:text-sm text-white">📋 Esquema Estándar Personalizado</span>
+                        <span className="text-[9px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded border border-slate-700 font-bold">
+                          BASE
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 line-clamp-1">
+                        Cálculo fisiológico directo según constantes vitales, peso, edad e IMC.
+                      </p>
+                    </div>
+                    {selectedScale === 'none' && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
+                  </button>
+                )}
+
+                {/* Filtered Scales List */}
+                {filteredClinicalScales.filter(s => s.id !== 'none').map((scale) => {
+                  const isSelected = selectedScale === scale.id;
+                  return (
+                    <button
+                      key={scale.id}
+                      type="button"
+                      onClick={() => {
+                        applyScaleAdaptation(scale.id);
+                        setIsScaleDropdownOpen(false);
+                      }}
+                      className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 border ${
+                        isSelected
+                          ? 'bg-brand-teal/15 border-brand-teal/50 ring-1 ring-brand-teal/30 text-white'
+                          : 'bg-slate-900/40 hover:bg-slate-900 border-transparent text-slate-300'
+                      }`}
+                    >
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-xs sm:text-sm text-white">{scale.name}</span>
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${scale.badgeColor}`}>
+                            {scale.tag}
+                          </span>
+                          <span className="text-[9px] text-slate-400 bg-slate-800/80 px-1.5 py-0.2 rounded font-mono">
+                            {scale.category}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 line-clamp-1">
+                          {scale.description}
+                        </p>
+                      </div>
+                      {isSelected ? (
+                        <Check className="w-4 h-4 text-brand-teal shrink-0" />
+                      ) : (
+                        <Zap className="w-3.5 h-3.5 text-slate-600 group-hover:text-brand-teal shrink-0 opacity-40" />
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* No results message */}
+                {filteredClinicalScales.filter(s => s.id !== 'none').length === 0 && (
+                  <div className="p-6 text-center space-y-2">
+                    <p className="text-xs text-slate-400">
+                      No se encontraron escalas coincidentes con <strong className="text-white">"{scaleSearchQuery}"</strong>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScaleSearchQuery('');
+                        setScaleCategoryFilter('TODOS');
+                      }}
+                      className="text-xs text-brand-teal hover:underline font-bold cursor-pointer"
+                    >
+                      Limpiar filtros y ver todas
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Dropdown Footer info */}
+              <div className="px-3 py-2 bg-slate-900/80 text-[10px] text-slate-400 flex items-center justify-between">
+                <span>Total: {CLINICAL_SCALES.length - 1} escalas clínicas disponibles</span>
+                <button
+                  type="button"
+                  onClick={() => setIsScaleDropdownOpen(false)}
+                  className="text-slate-400 hover:text-white font-semibold cursor-pointer"
+                >
+                  Cerrar ✕
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Active Scale Description Alert */}
         {selectedScale !== 'none' && activeScaleObj && (
-          <div className="bg-brand-teal/10 border border-brand-teal/40 rounded-xl p-3 text-xs flex items-start justify-between gap-2 animate-fade-in">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5">
-                <Zap className="w-4 h-4 text-brand-teal shrink-0" />
-                <strong className="text-white">Plan Terapéutico Ajustado por: {activeScaleObj.name}</strong>
+          <div className="bg-brand-teal/10 border border-brand-teal/40 rounded-xl p-2.5 text-xs flex items-start justify-between gap-2 animate-fade-in">
+            <div className="space-y-0.5 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Zap className="w-4 h-4 text-brand-teal shrink-0 animate-pulse" />
+                <strong className="text-white text-xs">{activeScaleObj.name}</strong>
+                <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${activeScaleObj.badgeColor}`}>
+                  {activeScaleObj.tag}
+                </span>
               </div>
               <p className="text-slate-300 text-[11px] leading-relaxed">
                 {activeScaleObj.description}
@@ -1314,7 +2494,7 @@ export default function PatientTreatmentSection({
             <button
               type="button"
               onClick={() => applyScaleAdaptation('none')}
-              className="text-slate-400 hover:text-white p-1 text-xs shrink-0"
+              className="text-slate-400 hover:text-rose-400 p-1 text-xs shrink-0 cursor-pointer"
               title="Quitar escala"
             >
               ✕
@@ -1871,47 +3051,49 @@ export default function PatientTreatmentSection({
 
       </div>
 
-      {/* 7. BOTTOM ACTION EXPORT BAR (Responsive Mobile-First: WhatsApp, PDF, Guardar Historial) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl space-y-2.5">
-        <div className="text-[11px] font-mono text-brand-teal font-bold uppercase flex items-center justify-between">
-          <span className="flex items-center gap-1.5">
-            <Share2 className="w-3.5 h-3.5" /> Opciones de Exportación y Guardado:
+      {/* 7. BOTTOM ACTION EXPORT BAR (Diseño Compacto y Elegante) */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1.5 text-xs text-slate-300 font-semibold">
+          <Share2 className="w-3.5 h-3.5 text-brand-teal shrink-0" />
+          <span className="text-[11px] sm:text-xs text-slate-300 uppercase tracking-wider font-mono">
+            Opciones de Guardado & Exportación
           </span>
         </div>
 
-        {/* Action Buttons Grid - 3 Responsive Columns */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full">
-          {/* 1. WHATSAPP - VERDE */}
+        {/* Action Buttons - Compact & Elegant */}
+        <div className="grid grid-cols-3 sm:flex sm:items-center gap-2">
+          {/* 1. WHATSAPP */}
           <button
             type="button"
             onClick={handleShareWhatsApp}
-            className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold px-4 py-3 rounded-xl border border-emerald-400/40 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-xs sm:text-sm active:scale-95 min-w-0"
+            className="bg-emerald-600/90 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold px-2.5 sm:px-3 py-2 rounded-lg border border-emerald-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm text-xs active:scale-95 min-w-0"
             title="Enviar tratamiento en PDF por WhatsApp"
           >
-            <Share2 className="w-4 h-4 text-emerald-100 shrink-0" />
-            <span className="truncate">Enviar PDF por WhatsApp</span>
+            <Share2 className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
+            <span className="truncate hidden xs:inline sm:inline">WhatsApp</span>
+            <span className="truncate xs:hidden sm:hidden">WhatsApp</span>
           </button>
 
-          {/* 2. PDF - BLANCO */}
+          {/* 2. PDF */}
           <button
             type="button"
             onClick={handleDownloadPDF}
-            className="bg-white hover:bg-slate-100 text-slate-900 font-extrabold px-4 py-3 rounded-xl border border-slate-200 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-xs sm:text-sm active:scale-95 min-w-0"
-            title="Descargar documento PDF completo del tratamiento"
+            className="bg-slate-100 hover:bg-white text-slate-900 font-bold px-2.5 sm:px-3 py-2 rounded-lg border border-slate-300 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm text-xs active:scale-95 min-w-0"
+            title="Descargar documento PDF del tratamiento"
           >
-            <Download className="w-4 h-4 text-slate-900 shrink-0" />
-            <span className="truncate">Descargar PDF</span>
+            <Download className="w-3.5 h-3.5 text-slate-900 shrink-0" />
+            <span className="truncate">PDF</span>
           </button>
 
-          {/* 3. GUARDAR HISTORIAL - AZUL */}
+          {/* 3. GUARDAR HISTORIAL */}
           <button
             type="button"
             onClick={handleSaveToEMR}
-            className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold px-4 py-3 rounded-xl border border-blue-400/40 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-xs sm:text-sm active:scale-95 min-w-0"
+            className="bg-blue-600/90 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold px-2.5 sm:px-3 py-2 rounded-lg border border-blue-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm text-xs active:scale-95 min-w-0"
             title="Guardar en el Historial Clínico para comparar con futuras visitas"
           >
-            <FolderPlus className="w-4 h-4 text-blue-100 shrink-0" />
-            <span className="truncate">{savedToEmr ? '✓ Historial Guardado' : 'Guardar Historial'}</span>
+            <FolderPlus className="w-3.5 h-3.5 text-blue-100 shrink-0" />
+            <span className="truncate">{savedToEmr ? '✓ Guardado' : 'Historial'}</span>
           </button>
         </div>
       </div>
