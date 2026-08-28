@@ -465,40 +465,46 @@ export default function App() {
   return (
     <div className="min-h-screen bg-brand-dark flex flex-col justify-between text-white font-sans selection:bg-brand-teal selection:text-slate-900">
       
-      {/* Top micro bar displaying current device ID for Andrey's debugging */}
-      <div className="bg-brand-navy-light/40 border-b border-slate-800/80 px-4 py-2 text-[10px] text-slate-400 font-mono flex flex-wrap justify-between items-center gap-2 select-none">
-        <div className="flex items-center gap-1.5">
-          <Smartphone className="w-3.5 h-3.5 text-brand-teal" />
-          <span>ID de Dispositivo (Físico Simulado): <strong className="text-brand-teal-pastel">{deviceId}</strong></span>
+      {/* Top micro bar ONLY on License/Login screens (Hidden inside Doctor Accounts) */}
+      {currentView !== 'dashboard' && (
+        <div className="bg-brand-navy-light/40 border-b border-slate-800/80 px-4 py-2 text-[10px] text-slate-400 font-mono flex flex-wrap justify-between items-center gap-2 select-none">
+          <div className="flex items-center gap-1.5">
+            <Smartphone className="w-3.5 h-3.5 text-brand-teal" />
+            <span>ID de Dispositivo (Físico Simulado): <strong className="text-brand-teal-pastel">{deviceId}</strong></span>
+          </div>
+          <div className="flex gap-3 items-center">
+            <button
+              onClick={handleHeaderCreateIconClick}
+              className="bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-400/50 px-2.5 py-1 rounded-md font-bold transition-all flex items-center gap-1.5 text-[10px] shadow-sm shadow-cyan-500/10 active:scale-95 cursor-pointer"
+              title="Crear icono en la pantalla principal del celular"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+              <span>CREAR ICONO</span>
+            </button>
+            <button
+              onClick={handleSimulateNewPhone}
+              className="text-brand-teal hover:underline font-bold"
+              title="Simula que instaló la app en otro celular diferente para probar el bloqueo de licencias"
+            >
+              [⚙️ Cambiar ID Teléfono]
+            </button>
+            <button
+              onClick={() => setIsAdminMode(true)}
+              className="text-slate-400 hover:text-white"
+            >
+              [🔑 Panel Administrador]
+            </button>
+          </div>
         </div>
-        <div className="flex gap-3 items-center">
-          <button
-            onClick={handleHeaderCreateIconClick}
-            className="bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-400/50 px-2.5 py-1 rounded-md font-bold transition-all flex items-center gap-1.5 text-[10px] shadow-sm shadow-cyan-500/10 active:scale-95 cursor-pointer"
-            title="Crear icono en la pantalla principal del celular"
-          >
-            <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-            <span>CREAR ICONO</span>
-          </button>
-          <button
-            onClick={handleSimulateNewPhone}
-            className="text-brand-teal hover:underline font-bold"
-            title="Simula que instaló la app en otro celular diferente para probar el bloqueo de licencias"
-          >
-            [⚙️ Cambiar ID Teléfono]
-          </button>
-          <button
-            onClick={() => setIsAdminMode(true)}
-            className="text-slate-400 hover:text-white"
-          >
-            [🔑 Panel Administrador]
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* RENDER VIEW: CLINICAL WORKSPACE */}
       {currentView === 'dashboard' && activeDoctor && (
-        <Dashboard doctor={activeDoctor} onLogout={handleLogout} />
+        <Dashboard 
+          doctor={activeDoctor} 
+          onLogout={handleLogout} 
+          onOpenCreateIcon={handleHeaderCreateIconClick} 
+        />
       )}
 
       {/* RENDER VIEW: ADMIN PANEL */}
