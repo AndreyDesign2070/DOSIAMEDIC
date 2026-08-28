@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { License } from '../types';
-import { INITIAL_LICENSES } from '../data';
+import { INITIAL_LICENSES, INITIAL_PATIENTS } from '../data';
 import { 
   Key, Plus, Search, RefreshCw, Smartphone, 
   ToggleLeft, ToggleRight, DollarSign, Activity, CheckCircle, ShieldAlert,
-  Edit, Trash2, X
+  Edit, Trash2, X, BarChart3
 } from 'lucide-react';
 import DosiaAppIcon from './DosiaAppIcon';
+import MedicalAnalyticsDashboard from './MedicalAnalyticsDashboard';
 import { 
   subscribeCloudLicenses, 
   saveCloudLicense, 
@@ -45,6 +46,7 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
   };
 
   const [licensesList, setLicensesList] = useState<License[]>(() => getLocalLicenses());
+  const [adminTab, setAdminTab] = useState<'licenses' | 'stats'>('licenses');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -364,29 +366,69 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
   return (
     <div className="min-h-screen bg-brand-dark text-white p-6 md:p-10 flex flex-col">
       {/* Title Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-800 pb-6 mb-8 gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-800 pb-6 mb-6 gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <DosiaAppIcon size="sm" className="animate-pulse" />
             <h1 className="text-3xl font-extrabold tracking-tight text-white font-display">
-              DOSIA <span className="text-brand-teal font-normal">Panel de Licencias</span>
+              DOSIA <span className="text-brand-teal font-normal">Panel de Administración General</span>
             </h1>
           </div>
           <p className="text-sm text-slate-400">
-            Administración de licencias activas y control de pagos quincenales / fin de mes
+            Administración de licencias médicas, control financiero y estadísticas globales del sistema
           </p>
         </div>
         
-        <button
-          onClick={onBack}
-          className="px-5 py-2.5 rounded-lg border border-slate-700 bg-brand-navy-light text-slate-200 font-medium hover:bg-slate-800 hover:text-white transition-all text-sm cursor-pointer"
-        >
-          ← Regresar al Portal de Inicio
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Admin Tab Switcher */}
+          <div className="flex items-center bg-slate-900 border border-slate-700/80 rounded-xl p-1">
+            <button
+              type="button"
+              onClick={() => setAdminTab('licenses')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminTab === 'licenses'
+                  ? 'bg-brand-teal text-slate-900 shadow-md font-extrabold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>Gestión de Licencias ({licensesList.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAdminTab('stats')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminTab === 'stats'
+                  ? 'bg-brand-teal text-slate-900 shadow-md font-extrabold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Estadísticas del Sistema</span>
+            </button>
+          </div>
+
+          <button
+            onClick={onBack}
+            className="px-4 py-2 rounded-xl border border-slate-700 bg-brand-navy-light text-slate-200 font-bold hover:bg-slate-800 hover:text-white transition-all text-xs cursor-pointer"
+          >
+            ← Regresar al Portal
+          </button>
+        </div>
       </div>
 
-      {/* Analytics widgets */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {adminTab === 'stats' ? (
+        <div className="animate-fade-in space-y-6">
+          <MedicalAnalyticsDashboard
+            patients={INITIAL_PATIENTS}
+            activeLicense={licensesList[0] || null}
+          />
+        </div>
+      ) : (
+        <>
+          {/* Analytics widgets */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-brand-navy-light/40 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Valor Licencia Médica</span>
@@ -660,6 +702,8 @@ export default function AdminPanel({ onBack }: AdminPanelProps) {
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {/* EDIT LICENSE MODAL */}
       {isEditMode && (

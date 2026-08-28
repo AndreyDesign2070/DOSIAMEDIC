@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Patient, Prescription, Medication, EmergencyProtocol, TemplateDocument, PatientAlerts, VitalSigns, EMREntry, ImageStudy, BloodGroup, PatientStatus } from '../types';
+import { 
+  Patient, Medication, EmergencyProtocol, PatientAlerts, VitalSigns, 
+  EMREntry, BloodGroup, PatientStatus 
+} from '../types';
 import { INITIAL_MEDICATIONS, INITIAL_PROTOCOLS, INITIAL_PATIENTS } from '../data';
-import ClinicalAlertsBar from './ClinicalAlertsBar';
+import PatientTreatmentSection from './PatientTreatmentSection';
 import PatientProfileCard from './PatientProfileCard';
 import AutoEvaluationModule from './AutoEvaluationModule';
 import MedicalScalesModule from './MedicalScalesModule';
 import EmergencyModeModule from './EmergencyModeModule';
-import PrescriptionEngineModule from './PrescriptionEngineModule';
-import DocumentsCertificationsModule from './DocumentsCertificationsModule';
 import EMRTimelineModule from './EMRTimelineModule';
 import AIMedicalAssistantModule from './AIMedicalAssistantModule';
-import MedicalImagingModule from './MedicalImagingModule';
-import MedicalAnalyticsDashboard from './MedicalAnalyticsDashboard';
 import GlobalSearchModal from './GlobalSearchModal';
 import PatientsListModal from './PatientsListModal';
-import DosiaLogo from './DosiaLogo';
 import DosiaAppIcon from './DosiaAppIcon';
 import { 
   subscribeCloudPatients, 
@@ -22,9 +20,10 @@ import {
   deleteCloudPatient 
 } from '../lib/firebase';
 import {
-  User, Activity, Calculator, Pill, FileText, Clock, Bot, HeartPulse,
-  Image as ImageIcon, BarChart3, Search, Plus, LogOut, ShieldCheck,
-  ChevronDown, Check, Sparkles, Baby, UserPlus, X, Smartphone, Monitor, ChevronRight
+  User, Activity, Pill, Clock, Bot, HeartPulse, Stethoscope,
+  Search, Plus, LogOut, ShieldCheck, Check, Sparkles, Baby, 
+  UserPlus, X, ChevronRight, FileText, Share2, FolderPlus,
+  RefreshCw, SlidersHorizontal, ArrowRight, UserCheck
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -37,46 +36,34 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ doctor, onLogout }: DashboardProps) {
-  // Global Patients & Active Patient State (Starts empty with 0 patients for a new license)
+  // Global Patients & Active Patient State
   const [patients, setPatients] = useState<Patient[]>([]);
   const [activePatientId, setActivePatientId] = useState<string>('');
   const [medications, setMedications] = useState<Medication[]>(INITIAL_MEDICATIONS);
   const [protocols, setProtocols] = useState<EmergencyProtocol[]>(INITIAL_PROTOCOLS);
-  const [documents, setDocuments] = useState<TemplateDocument[]>([]);
   const [emrEntries, setEmrEntries] = useState<EMREntry[]>([]);
 
-  // Navigation Tab state
+  // Navigation Tab state: Mobile-First, Direct Buttons (No dropdown groups)
   const [activeTab, setActiveTab] = useState<
+    | 'treatment'
     | 'patient_profile'
     | 'clinical_consultation'
-    | 'auto_evaluation'
-    | 'prescription'
-    | 'documents'
     | 'emr_timeline'
+    | 'medical_scales'
     | 'ai_medical'
     | 'emergency_mode'
-    | 'medical_scales'
-    | 'imaging'
-    | 'analytics'
-  >('patient_profile');
-
-  // Navigation Group Dropdowns state ('g1' | 'g2' | 'g3' | null)
-  const [openGroup, setOpenGroup] = useState<'g1' | 'g2' | 'g3' | null>(null);
+  >('treatment');
 
   // Interactive Patient Dropdown Selector state
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false);
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
 
-  // Global Search Modal state
+  // Modals state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-  // Patients List Modal state
   const [showPatientsListModal, setShowPatientsListModal] = useState(false);
-
-  // New Patient Creation Modal (Points 1 to 16)
   const [showNewPatientModal, setShowNewPatientModal] = useState(false);
-  
-  // Mandatory Points 1 - 7
+
+  // New Patient Form State (16 Points)
   const [newCategory, setNewCategory] = useState<'ADULTO' | 'PEDIÁTRICO'>('ADULTO'); // 1
   const [newName, setNewName] = useState(''); // 2
   const [newAge, setNewAge] = useState<number | ''>(30); // 3
@@ -87,7 +74,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
   const [newSex, setNewSex] = useState<'M' | 'F'>('F');
   const [newCardId, setNewCardId] = useState('');
 
-  // Optional Points 8 - 16 (Llenar poco a poco)
+  // Signos Vitales (8 a 16)
   const [newHeartRate, setNewHeartRate] = useState<number | ''>(80); // 8
   const [newBloodPressure, setNewBloodPressure] = useState('120/80'); // 9
   const [newTemperature, setNewTemperature] = useState<number | ''>(36.5); // 10
@@ -97,12 +84,12 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
   const [newGlychemia, setNewGlychemia] = useState<number | ''>(100); // 14
   const [newDiuresis, setNewDiuresis] = useState<number | ''>(60); // 15
   
-  // 16. Glasgow Coma Scale (04 VSM6)
+  // 16. Glasgow
   const [newGlasgowOcular, setNewGlasgowOcular] = useState<number>(4);
   const [newGlasgowVerbal, setNewGlasgowVerbal] = useState<number>(5);
   const [newGlasgowMotor, setNewGlasgowMotor] = useState<number>(6);
 
-  // Get current active patient object (returns null if activePatientId is '')
+  // Active patient object
   const activePatient = patients.find(p => p.id === activePatientId) || null;
 
   // Helper to retrieve deleted patient IDs set for current license key
@@ -122,7 +109,6 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     const deletedSet = getDeletedPatientIds(normKey);
     const resultMap = new Map<string, Patient>();
 
-    // 1. Add local patients first
     if (Array.isArray(localP)) {
       for (const p of localP) {
         if (p && p.id && !deletedSet.has(p.id)) {
@@ -131,7 +117,6 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
       }
     }
 
-    // 2. Add or update cloud patients (respecting deleted set)
     if (Array.isArray(cloudP)) {
       for (const p of cloudP) {
         if (p && p.id && !deletedSet.has(p.id)) {
@@ -155,7 +140,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
     const storageKey = `dosia_patients_${normKey}`;
 
-    // 1. Try local cache first for instant zero-latency render
+    // 1. Local storage load for instant render
     let initialLocal: Patient[] = [];
     try {
       const storedP = localStorage.getItem(storageKey);
@@ -173,39 +158,37 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     const validInitial = initialLocal.filter(p => p && p.id && !deletedSet.has(p.id));
     setPatients(validInitial);
 
-    // 2. Subscribe to real-time Cloud Firestore updates for doctor.licenseKey
+    // 2. Subscribe to real-time Cloud Firestore updates
     const unsubscribe = subscribeCloudPatients(doctor.licenseKey, (cloudPatients) => {
-      // Re-read current local storage to preserve any patients created locally during session
       let currentLocal: Patient[] = [];
       try {
-        const s = localStorage.getItem(storageKey);
-        if (s) {
-          const p = JSON.parse(s);
-          if (Array.isArray(p)) currentLocal = p;
+        const storedP = localStorage.getItem(storageKey);
+        if (storedP) {
+          const parsed = JSON.parse(storedP);
+          if (Array.isArray(parsed)) {
+            currentLocal = parsed;
+          }
         }
       } catch (e) {}
 
-      const merged = mergePatientsLists(currentLocal, cloudPatients || [], normKey);
+      const merged = mergePatientsLists(currentLocal, cloudPatients, normKey);
       setPatients(merged);
-      localStorage.setItem(storageKey, JSON.stringify(merged));
 
-      // Auto-upload any local patients to Cloud Firestore that aren't in cloud list yet
-      const cloudIds = new Set((cloudPatients || []).map(p => p.id));
-      merged.forEach(p => {
-        if (!cloudIds.has(p.id)) {
-          saveCloudPatient(p, doctor.licenseKey);
-        }
-      });
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(merged));
+      } catch (e) {}
     });
 
     return () => unsubscribe();
   }, [doctor?.licenseKey]);
 
-  const savePatientsToStorage = (updatedList: Patient[]) => {
-    setPatients(updatedList);
+  const savePatientsToStorage = (updatedPatients: Patient[]) => {
     const normKey = (doctor?.licenseKey || '').trim().toUpperCase();
-    if (normKey) {
-      localStorage.setItem(`dosia_patients_${normKey}`, JSON.stringify(updatedList));
+    if (!normKey) return;
+    try {
+      localStorage.setItem(`dosia_patients_${normKey}`, JSON.stringify(updatedPatients));
+    } catch (e) {
+      console.error('Error al guardar pacientes en localStorage:', e);
     }
   };
 
@@ -232,25 +215,18 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     setNewGlasgowMotor(6);
   };
 
-  // Mandatory validation (Name and Card ID are optional)
-  const isMandatoryValid = Boolean(
-    newCategory &&
-    newAge !== '' && Number(newAge) >= 0 &&
+  const isMandatoryValid = (
+    newAge !== '' && Number(newAge) > 0 &&
     newWeight !== '' && Number(newWeight) > 0 &&
-    newHeight !== '' && Number(newHeight) > 0 &&
-    newBloodGroup &&
-    newStatus
+    newHeight !== '' && Number(newHeight) > 0
   );
 
+  // Handle Create Patient: Automatically selects the patient and switches to Treatment!
   const handleCreatePatient = () => {
-    if (!isMandatoryValid) {
-      alert('Por favor complete los datos básicos (Categoría, Edad, Peso, Talla, Grupo Sanguíneo y Estado).');
-      return;
-    }
+    if (!isMandatoryValid) return;
 
     const ageNum = Number(newAge) || 30;
     const totalGlasgow = Number(newGlasgowOcular) + Number(newGlasgowVerbal) + Number(newGlasgowMotor);
-
     const finalName = newName.trim() || `Paciente #${Math.floor(1000 + Math.random() * 9000)}`;
     const finalCardId = newCardId.trim() || `C.I.-${Math.floor(10000000 + Math.random() * 90000000)}`;
 
@@ -304,11 +280,11 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     savePatientsToStorage(updated);
     saveCloudPatient(newP, doctor.licenseKey);
     setActivePatientId(newP.id);
+    setActiveTab('treatment'); // Immediately jump to Treatment as requested!
     setShowNewPatientModal(false);
     resetNewPatientForm();
   };
 
-  // Patient Updates
   const handleUpdatePatient = (updated: Patient) => {
     const list = patients.map(p => p.id === updated.id ? updated : p);
     savePatientsToStorage(list);
@@ -333,17 +309,6 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     }
   };
 
-  const handleUpdateAlerts = (newAlerts: PatientAlerts) => {
-    if (!activePatient) return;
-    const updated: Patient = {
-      ...activePatient,
-      alerts: newAlerts,
-      allergies: newAlerts.allergies,
-      preExistingConditions: newAlerts.chronicDiseases
-    };
-    handleUpdatePatient(updated);
-  };
-
   const handleUpdateVitals = (vitals: VitalSigns) => {
     if (!activePatient) return;
     const updated: Patient = {
@@ -353,251 +318,178 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
     handleUpdatePatient(updated);
   };
 
-  // Filtered patients for dropdown
-  const filteredDropdownPatients = patients.filter(p => {
-    if (!patientSearchQuery.trim()) return true;
-    const q = patientSearchQuery.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(q) ||
-      p.cardId.toLowerCase().includes(q) ||
-      p.hcNumber.toLowerCase().includes(q)
-    );
-  });
+  // Filtered dropdown patients
+  const filteredDropdownPatients = patients.filter(p => 
+    p.name.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
+    p.cardId.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
+    p.hcNumber.toLowerCase().includes(patientSearchQuery.toLowerCase())
+  );
 
   return (
-    <div className="min-h-screen bg-brand-dark text-slate-100 flex flex-col font-sans selection:bg-brand-teal selection:text-slate-900 transition-all duration-300">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased selection:bg-brand-teal selection:text-slate-900">
       
-      {/* 1. TOP SYSTEM APP BAR */}
-      <header className="bg-brand-navy-light border-b border-slate-800 px-3 sm:px-6 py-2.5 sm:py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 sticky top-0 z-30">
-        
-        {/* Left Branding */}
-        <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <DosiaAppIcon size="sm" className="animate-pulse shrink-0" />
+      {/* 1. TOP MOBILE-FIRST HEADER BAR */}
+      <header className="bg-slate-900 border-b border-slate-800/90 px-3 sm:px-6 py-2.5 sticky top-0 z-40 backdrop-blur-md shadow-md">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          
+          {/* Logo & App Icon */}
+          <div className="flex items-center gap-2">
+            <DosiaAppIcon size="sm" />
             <div>
-              <div className="flex items-center gap-2">
-                <DosiaLogo size="md" />
-                <span className="text-[9px] sm:text-[10px] bg-brand-teal/20 text-brand-teal border border-brand-teal/40 px-2 sm:px-2.5 py-0.5 rounded-full font-mono font-bold tracking-wider uppercase shrink-0">
-                  PRESCRIPCIÓN MÉDICA
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-extrabold text-white tracking-tight font-display">DOSIA</span>
+                <span className="text-[10px] bg-brand-teal/20 text-brand-teal px-1.5 py-0.2 rounded font-mono font-bold">
+                  v2026
                 </span>
               </div>
-
-              <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1 leading-snug">
-                <div>Médico Autorizado: <strong className="text-slate-200">{doctor.name}</strong></div>
-                <div>Licencia: <span className="font-mono text-brand-teal font-semibold">{doctor.licenseKey}</span></div>
-              </div>
+              <span className="text-[10px] text-slate-400 font-mono hidden sm:inline-block">
+                Dr(a). {doctor.name} • Lic: <strong className="text-brand-teal">{doctor.licenseKey}</strong>
+              </span>
             </div>
           </div>
 
-          {/* Mobile Logout Button (Visible only on small screens next to brand) */}
-          <button
-            type="button"
-            onClick={onLogout}
-            className="md:hidden bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 p-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center shrink-0"
-            title="Cerrar sesión"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            
+            {/* Search Button */}
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              className="p-2 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-slate-700"
+              title="Buscar en todo el sistema"
+            >
+              <Search className="w-3.5 h-3.5 text-brand-teal" />
+              <span className="hidden md:inline">Buscar</span>
+            </button>
 
-        {/* Action Tools & Top Right Buttons */}
-        <div className="grid grid-cols-3 sm:flex sm:items-center sm:flex-wrap justify-between md:justify-end gap-1.5 sm:gap-2 w-full md:w-auto">
-          
-          <button
-            type="button"
-            onClick={() => setShowNewPatientModal(true)}
-            className="col-span-1 bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-2 sm:px-3 py-1.5 rounded-xl text-xs flex items-center justify-center gap-1 transition-all cursor-pointer shadow-md shadow-brand-teal/10"
-          >
-            <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">Nuevo Paciente</span>
-          </button>
+            {/* Quick New Patient Button */}
+            <button
+              type="button"
+              onClick={() => setShowNewPatientModal(true)}
+              className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-all cursor-pointer shadow-md shadow-brand-teal/20"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Nuevo Paciente</span>
+            </button>
 
-          {/* White Pacientes Button right next to Nuevo Paciente */}
-          <button
-            type="button"
-            onClick={() => setShowPatientsListModal(true)}
-            className="col-span-1 bg-white hover:bg-slate-100 text-slate-900 font-bold px-2 sm:px-3 py-1.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm border border-slate-200"
-          >
-            <User className="w-3.5 h-3.5 text-brand-navy shrink-0" />
-            <span className="truncate">Pacientes</span>
-            {patients.length > 0 && (
-              <span className="bg-brand-navy/10 text-brand-navy text-[10px] font-extrabold px-1.5 py-0.2 rounded-full font-mono shrink-0">
-                {patients.length}
-              </span>
-            )}
-          </button>
-
-          {/* Global Search Button */}
-          <button
-            type="button"
-            onClick={() => setIsSearchOpen(true)}
-            className="col-span-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
-          >
-            <Search className="w-3.5 h-3.5 text-brand-teal shrink-0" />
-            <span className="truncate">Buscar</span>
-          </button>
-
-          {/* Logout button desktop */}
-          <button
-            type="button"
-            onClick={onLogout}
-            className="hidden md:flex bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer items-center gap-1"
-            title="Cerrar sesión"
-          >
-            <LogOut className="w-3.5 h-3.5" /> Salir
-          </button>
+            {/* Logout Button */}
+            <button
+              type="button"
+              onClick={onLogout}
+              className="p-2 sm:px-3 sm:py-1.5 bg-slate-900 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-slate-800 hover:border-rose-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Salir</span>
+            </button>
+          </div>
 
         </div>
       </header>
 
-      {/* 2. PERSISTENT TOP CLINICAL ALERTS PANEL */}
-      <ClinicalAlertsBar patient={activePatient} onUpdateAlerts={handleUpdateAlerts} />
-
-      {/* 3. PATIENT SELECTOR STRIP DIRECTLY ABOVE / NEAR THE TABS (Prompt Request #7) */}
-      <div className="bg-slate-900/90 border-b border-slate-800 px-3 sm:px-6 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 relative">
-        <div className="flex items-center gap-2 min-w-0 max-w-full">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono shrink-0">
-            Paciente:
-          </span>
-
-          {/* CUSTOM INTERACTIVE PATIENT DROPDOWN SELECTOR */}
-          <div className="relative inline-block text-left min-w-0 max-w-full">
+      {/* 2. ACTIVE PATIENT QUICK BANNER & SWITCHER (Mobile-First) */}
+      <div className="bg-slate-900/60 border-b border-slate-800/80 px-3 sm:px-6 py-2">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          
+          {/* Patient Selector Dropdown */}
+          <div className="relative flex-1 max-w-md">
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsPatientDropdownOpen(prev => !prev);
-              }}
-              className="flex items-center justify-between gap-2 bg-slate-950 hover:bg-slate-800 border border-brand-teal/50 rounded-xl px-3 py-1.5 shadow-inner transition-all cursor-pointer min-w-0 text-xs font-bold text-white max-w-[280px] sm:max-w-md select-none"
-              title="Haz clic para seleccionar o cambiar de paciente"
+              onClick={() => setIsPatientDropdownOpen(prev => !prev)}
+              className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-700/80 text-white rounded-xl px-3 py-2 flex items-center justify-between gap-2 cursor-pointer shadow-inner transition-all"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <User className="w-4 h-4 text-brand-teal shrink-0" />
-                <span className="truncate">
-                  {activePatient ? (
-                    <>
-                      <strong className="text-white">{activePatient.name}</strong> — {activePatient.cardId}
-                    </>
-                  ) : (
-                    <span className="text-slate-400 italic">-- Seleccionar Paciente --</span>
-                  )}
+              <div className="flex items-center gap-2 truncate">
+                <UserCheck className={`w-4 h-4 shrink-0 ${activePatient ? 'text-brand-teal' : 'text-slate-500'}`} />
+                <span className="font-bold truncate">
+                  {activePatient ? `${activePatient.name} (${activePatient.age}a • ${activePatient.weight}kg)` : 'Seleccionar Paciente de la Lista...'}
                 </span>
               </div>
-              <ChevronDown className={`w-4 h-4 text-brand-teal shrink-0 transition-transform ${isPatientDropdownOpen ? 'rotate-180' : ''}`} />
+              <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-mono shrink-0">
+                {patients.length} reg.
+              </span>
             </button>
 
-            {/* POPUP DROPDOWN MENU FOR SELECTING PATIENT */}
+            {/* Dropdown Menu */}
             {isPatientDropdownOpen && (
               <>
                 <div 
-                  className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-xs sm:bg-transparent sm:backdrop-blur-none" 
+                  className="fixed inset-0 z-[120] bg-black/60 sm:bg-transparent" 
                   onClick={() => setIsPatientDropdownOpen(false)} 
                 />
-                <div className="fixed inset-x-3 top-28 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:w-96 z-[125] bg-slate-900 border border-brand-teal/60 rounded-2xl shadow-2xl overflow-hidden py-1 divide-y divide-slate-800 animate-fade-in max-h-[70vh] flex flex-col">
+                <div className="fixed inset-x-3 top-24 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:w-80 z-[130] bg-slate-900 border border-brand-teal/50 rounded-2xl shadow-2xl overflow-hidden py-1 divide-y divide-slate-800 animate-fade-in">
                   
-                  {/* Search Header */}
-                  <div className="p-2.5 bg-slate-950 shrink-0 space-y-2">
-                    <div className="flex items-center justify-between text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider">
-                      <span>Seleccionar Paciente</span>
-                      <button
-                        type="button"
-                        onClick={() => setIsPatientDropdownOpen(false)}
-                        className="text-slate-400 hover:text-white p-0.5"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
+                  <div className="p-2.5 bg-slate-950 space-y-2">
                     <div className="relative">
                       <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                       <input
                         type="text"
-                        placeholder="Buscar por nombre, cédula o HC..."
+                        placeholder="Buscar paciente..."
                         value={patientSearchQuery}
                         onChange={(e) => setPatientSearchQuery(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
                         className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-teal"
                       />
                     </div>
                   </div>
 
-                  {/* Options List */}
-                  <div className="overflow-y-auto divide-y divide-slate-800/60 max-h-[300px]">
-                    {/* Option: None */}
+                  <div className="overflow-y-auto divide-y divide-slate-800/60 max-h-[260px]">
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                      onClick={() => {
                         setActivePatientId('');
                         setIsPatientDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2.5 text-xs font-bold flex items-center justify-between cursor-pointer transition-colors ${
-                        activePatientId === '' ? 'bg-brand-teal/20 text-brand-teal font-extrabold' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      className={`w-full text-left px-3 py-2 text-xs font-bold flex items-center justify-between cursor-pointer ${
+                        activePatientId === '' ? 'bg-brand-teal/20 text-brand-teal' : 'text-slate-400 hover:bg-slate-800'
                       }`}
                     >
-                      <span className="italic">-- Ningún paciente seleccionado --</span>
-                      {activePatientId === '' && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
+                      <span className="italic">-- Deseleccionar Paciente --</span>
+                      {activePatientId === '' && <Check className="w-4 h-4 text-brand-teal" />}
                     </button>
 
-                    {/* Patient Items */}
-                    {filteredDropdownPatients.length === 0 ? (
-                      <div className="px-3 py-4 text-center text-xs text-slate-500 italic">
-                        No se encontraron pacientes registrados.
-                      </div>
-                    ) : (
-                      filteredDropdownPatients.map((p) => {
-                        const isSelected = p.id === activePatientId;
-                        const cat = p.patientCategory || (p.age < 15 ? 'PEDIÁTRICO' : 'ADULTO');
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setActivePatientId(p.id);
-                              setIsPatientDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2.5 text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                              isSelected
-                                ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
-                                : 'text-slate-200 hover:bg-slate-800'
-                            }`}
-                          >
-                            <div className="flex flex-col min-w-0 pr-2">
-                              <div className="font-bold text-white flex items-center gap-1.5 truncate">
-                                <span>{p.name}</span>
-                                <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                                  cat === 'PEDIÁTRICO' ? 'bg-amber-500/20 text-amber-300' : 'bg-sky-500/20 text-sky-300'
-                                }`}>
-                                  {cat}
-                                </span>
-                              </div>
-                              <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                Cédula: {p.cardId} • Edad: {p.age}a • HC: {p.hcNumber}
-                              </div>
+                    {filteredDropdownPatients.map((p) => {
+                      const isSelected = p.id === activePatientId;
+                      const cat = p.patientCategory || (p.age < 15 ? 'PEDIÁTRICO' : 'ADULTO');
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            setActivePatientId(p.id);
+                            setIsPatientDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                            isSelected ? 'bg-brand-teal/20 text-brand-teal font-extrabold' : 'text-slate-200 hover:bg-slate-800'
+                          }`}
+                        >
+                          <div className="truncate pr-2">
+                            <div className="font-bold text-white flex items-center gap-1.5 truncate">
+                              <span>{p.name}</span>
+                              <span className={`text-[9px] px-1 py-0.2 rounded font-mono ${
+                                cat === 'PEDIÁTRICO' ? 'bg-amber-500/20 text-amber-300' : 'bg-sky-500/20 text-sky-300'
+                              }`}>
+                                {cat}
+                              </span>
                             </div>
-                            {isSelected && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
-                          </button>
-                        );
-                      })
-                    )}
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              C.I.: {p.cardId} • {p.age}a • {p.weight}kg
+                            </div>
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  {/* Create New Patient Footer Option */}
-                  <div className="p-2 bg-slate-950 shrink-0">
+                  <div className="p-2 bg-slate-950">
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                      onClick={() => {
                         setIsPatientDropdownOpen(false);
                         setShowNewPatientModal(true);
                       }}
-                      className="w-full bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
+                      className="w-full bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold py-1.5 rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      <Plus className="w-4 h-4" /> Registrar Nuevo Paciente
+                      <Plus className="w-3.5 h-3.5" /> Registrar Nuevo
                     </button>
                   </div>
 
@@ -605,467 +497,200 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
               </>
             )}
           </div>
+
+          {/* Active Patient Details Strip */}
+          {activePatient && (
+            <div className="flex items-center gap-3 overflow-x-auto text-slate-400 font-mono text-xs py-1">
+              <span>HC: <strong className="text-brand-teal">{activePatient.hcNumber}</strong></span>
+              <span>PA: <strong className="text-white">{activePatient.vitalSigns?.bloodPressure || '120/80'}</strong></span>
+              <span>FC: <strong className="text-white">{activePatient.vitalSigns?.heartRate || 80} lpm</strong></span>
+              <span>SpO2: <strong className="text-white">{activePatient.vitalSigns?.oxygenSaturation || 98}%</strong></span>
+              <span>T°: <strong className="text-white">{activePatient.vitalSigns?.temperature || 36.5} °C</strong></span>
+            </div>
+          )}
+
         </div>
+      </div>
 
-        {activePatient && (
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-            <span>HC: <strong className="text-brand-teal">{activePatient.hcNumber}</strong></span>
-            <span>•</span>
-            <span>Edad: <strong className="text-white">{activePatient.age} años</strong></span>
-            <span>•</span>
-            <span className={`font-bold px-2 py-0.5 rounded ${
-              (activePatient.patientCategory || (activePatient.age < 15 ? 'PEDIÁTRICO' : 'ADULTO')) === 'PEDIÁTRICO'
-                ? 'bg-amber-500/20 text-amber-300'
-                : 'bg-sky-500/20 text-sky-300'
-            }`}>
-              {activePatient.patientCategory || (activePatient.age < 15 ? 'PEDIÁTRICO' : 'ADULTO')}
-            </span>
+      {/* 3. PRIMARY NAVIGATION BAR (Individual Direct Buttons - Prompt Mandate) */}
+      <nav className="bg-slate-900 border-b border-slate-800 px-3 sm:px-6 py-2 sticky top-[53px] z-30 shadow-md">
+        <div className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-thin">
+          
+          {/* TAB 1: TRATAMIENTO & VADEMÉCUM (Centerpiece) */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('treatment')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
+              activeTab === 'treatment'
+                ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-md shadow-brand-teal/20 font-extrabold'
+                : 'bg-slate-950/80 text-slate-300 hover:bg-slate-800 border-slate-700/80'
+            }`}
+          >
+            <Pill className="w-4 h-4" />
+            <span>Tratamiento & Vademécum</span>
+          </button>
+
+          {/* TAB 2: DATOS DEL PACIENTE & VITALS */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('patient_profile')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
+              activeTab === 'patient_profile'
+                ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-md shadow-brand-teal/20 font-extrabold'
+                : 'bg-slate-950/80 text-slate-300 hover:bg-slate-800 border-slate-700/80'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            <span>Datos & Signos Vitales</span>
+          </button>
+
+          {/* TAB 3: CONSULTA & EVALUACIÓN */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('clinical_consultation')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
+              activeTab === 'clinical_consultation'
+                ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-md shadow-brand-teal/20 font-extrabold'
+                : 'bg-slate-950/80 text-slate-300 hover:bg-slate-800 border-slate-700/80'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            <span>Consulta & Tríada</span>
+          </button>
+
+          {/* TAB 4: HISTORIAL CLÍNICO (EMR) */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('emr_timeline')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
+              activeTab === 'emr_timeline'
+                ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-md shadow-brand-teal/20 font-extrabold'
+                : 'bg-slate-950/80 text-slate-300 hover:bg-slate-800 border-slate-700/80'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            <span>Historial Clínico</span>
+          </button>
+
+          {/* TAB 5: ESCALAS MÉDICAS */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('medical_scales')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
+              activeTab === 'medical_scales'
+                ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-md shadow-brand-teal/20 font-extrabold'
+                : 'bg-slate-950/80 text-slate-300 hover:bg-slate-800 border-slate-700/80'
+            }`}
+          >
+            <Stethoscope className="w-4 h-4" />
+            <span>Escalas Médicas</span>
+          </button>
+
+          {/* TAB 6: IA MÉDICA (Direct Button) */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('ai_medical')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
+              activeTab === 'ai_medical'
+                ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md font-extrabold'
+                : 'bg-cyan-950/30 text-cyan-300 hover:bg-cyan-900/40 border-cyan-500/40'
+            }`}
+          >
+            <Bot className="w-4 h-4" />
+            <span>IA Médica</span>
+          </button>
+
+          {/* TAB 7: MODO EMERGENCIA (Direct Button) */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('emergency_mode')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
+              activeTab === 'emergency_mode'
+                ? 'bg-rose-500 text-slate-950 border-rose-400 shadow-md font-extrabold'
+                : 'bg-rose-950/30 text-rose-300 hover:bg-rose-900/40 border-rose-500/40'
+            }`}
+          >
+            <HeartPulse className="w-4 h-4" />
+            <span>⚡ Emergencia</span>
+          </button>
+
+        </div>
+      </nav>
+
+      {/* 4. MAIN CONTENT CONTAINER */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-6">
+        
+        {/* If no patient is active and on Patient Profile or Treatment: Show Hero Action Cards */}
+        {!activePatient && (activeTab === 'treatment' || activeTab === 'patient_profile' || activeTab === 'clinical_consultation') && (
+          <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-6 sm:p-10 text-center space-y-6 max-w-2xl mx-auto shadow-2xl animate-fade-in">
+            <div className="w-16 h-16 bg-brand-teal/10 border border-brand-teal/30 text-brand-teal rounded-full flex items-center justify-center mx-auto">
+              <Pill className="w-8 h-8" />
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-white font-display">
+                Bienvenido al Asistente Terapéutico DOSIA
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+                Para diagnosticar el tratamiento, calcular dosis pediátricas/adulto y ajustar medicamentos del vademécum, inicie registrando un paciente o seleccione uno existente.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto pt-2">
+              <button
+                type="button"
+                onClick={() => setShowNewPatientModal(true)}
+                className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-extrabold p-4 rounded-2xl text-xs flex flex-col items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-brand-teal/20"
+              >
+                <Plus className="w-6 h-6" />
+                <span>Registrar Nuevo Paciente</span>
+                <span className="text-[10px] font-normal opacity-80">Ventana completa con signos vitales</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowPatientsListModal(true)}
+                className="bg-slate-800 hover:bg-slate-700 text-white font-bold p-4 rounded-2xl text-xs flex flex-col items-center justify-center gap-2 transition-all cursor-pointer border border-slate-700"
+              >
+                <UserCheck className="w-6 h-6 text-brand-teal" />
+                <span>Ver Pacientes ({patients.length})</span>
+                <span className="text-[10px] font-normal text-slate-400">Seleccionar paciente registrado</span>
+              </button>
+            </div>
           </div>
         )}
-      </div>
 
-      {/* 4. PRIMARY NAVIGATION TABS NAVBAR (GROUPED DROPDOWNS AS REQUESTED) */}
-      <div className="bg-brand-navy-light border-b border-slate-800 px-3 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto sm:overflow-visible max-w-full sm:flex-wrap sticky top-[49px] z-30">
-        
-        {/* GRUPO 1: Perfil del paciente, Consulta Clínica, Evaluación Automática */}
-        {(() => {
-          const g1Items = [
-            { id: 'patient_profile', label: 'Perfil del Paciente', icon: User },
-            { id: 'clinical_consultation', label: 'Consulta Clínica', icon: FileText },
-            { id: 'auto_evaluation', label: 'Evaluación Automática', icon: Activity }
-          ];
-          const isG1Active = g1Items.some(item => item.id === activeTab);
-          const activeItem = g1Items.find(item => item.id === activeTab);
-
-          return (
-            <div className="relative inline-block text-left shrink-0">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setOpenGroup(openGroup === 'g1' ? null : 'g1');
-                }}
-                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border select-none ${
-                  isG1Active
-                    ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
-                    : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
-                }`}
-              >
-                <User className="w-4 h-4 shrink-0" />
-                <div className="flex flex-col text-left leading-tight">
-                  <span className="text-[9px] uppercase tracking-wider font-extrabold opacity-80">GRUPO 1</span>
-                  <span className="text-xs truncate max-w-[110px] sm:max-w-[180px]">
-                    {activeItem ? activeItem.label : 'Consulta & Evaluación'}
-                  </span>
-                </div>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform shrink-0 ${openGroup === 'g1' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openGroup === 'g1' && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-[100] bg-black/60 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none" 
-                    onClick={() => setOpenGroup(null)} 
-                  />
-                  <div className="fixed inset-x-3 top-28 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:w-64 z-[110] rounded-2xl bg-slate-900 border border-brand-teal/50 shadow-2xl overflow-hidden py-1 divide-y divide-slate-800">
-                    <div className="px-3.5 py-2 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-950/90 flex items-center justify-between">
-                      <span>GRUPO 1 — Paciente & Consulta</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setOpenGroup(null);
-                        }}
-                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {g1Items.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setActiveTab(item.id as any);
-                            setOpenGroup(null);
-                          }}
-                          className={`w-full text-left px-4 py-3 sm:py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
-                            isActive
-                              ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
-                              : 'text-slate-200 hover:bg-slate-800 hover:text-white'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Icon className="w-4 h-4 text-brand-teal shrink-0" />
-                            <span>{item.label}</span>
-                          </div>
-                          {isActive && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* GRUPO 2: Prescripción & Vademécum, Documentos & Certificados */}
-        {(() => {
-          const g2Items = [
-            { id: 'prescription', label: 'Prescripción & Vademécum', icon: Pill },
-            { id: 'documents', label: 'Documentos & Certificados', icon: ShieldCheck }
-          ];
-          const isG2Active = g2Items.some(item => item.id === activeTab);
-          const activeItem = g2Items.find(item => item.id === activeTab);
-
-          return (
-            <div className="relative inline-block text-left shrink-0">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setOpenGroup(openGroup === 'g2' ? null : 'g2');
-                }}
-                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border select-none ${
-                  isG2Active
-                    ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
-                    : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
-                }`}
-              >
-                <Pill className="w-4 h-4 shrink-0" />
-                <div className="flex flex-col text-left leading-tight">
-                  <span className="text-[9px] uppercase tracking-wider font-extrabold opacity-80">GRUPO 2</span>
-                  <span className="text-xs truncate max-w-[110px] sm:max-w-[180px]">
-                    {activeItem ? activeItem.label : 'Prescripción & Documentos'}
-                  </span>
-                </div>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform shrink-0 ${openGroup === 'g2' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openGroup === 'g2' && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-[100] bg-black/60 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none" 
-                    onClick={() => setOpenGroup(null)} 
-                  />
-                  <div className="fixed inset-x-3 top-28 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:w-64 z-[110] rounded-2xl bg-slate-900 border border-brand-teal/50 shadow-2xl overflow-hidden py-1 divide-y divide-slate-800">
-                    <div className="px-3.5 py-2 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-950/90 flex items-center justify-between">
-                      <span>GRUPO 2 — Prescripción & Docs</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setOpenGroup(null);
-                        }}
-                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {g2Items.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setActiveTab(item.id as any);
-                            setOpenGroup(null);
-                          }}
-                          className={`w-full text-left px-4 py-3 sm:py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
-                            isActive
-                              ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
-                              : 'text-slate-200 hover:bg-slate-800 hover:text-white'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Icon className="w-4 h-4 text-brand-teal shrink-0" />
-                            <span>{item.label}</span>
-                          </div>
-                          {isActive && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* GRUPO 3: Historial Clínico, Escalas Médicas, Estadísticas (+ Imagenología) */}
-        {(() => {
-          const g3Items = [
-            { id: 'emr_timeline', label: 'Historial Clínico (Timeline)', icon: Clock },
-            { id: 'medical_scales', label: 'Escalas Médicas', icon: Calculator },
-            { id: 'analytics', label: 'Estadísticas', icon: BarChart3 },
-            { id: 'imaging', label: 'Imagenología', icon: ImageIcon }
-          ];
-          const isG3Active = g3Items.some(item => item.id === activeTab);
-          const activeItem = g3Items.find(item => item.id === activeTab);
-
-          return (
-            <div className="relative inline-block text-left shrink-0">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setOpenGroup(openGroup === 'g3' ? null : 'g3');
-                }}
-                className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border select-none ${
-                  isG3Active
-                    ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
-                    : 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border-slate-700/80'
-                }`}
-              >
-                <Clock className="w-4 h-4 shrink-0" />
-                <div className="flex flex-col text-left leading-tight">
-                  <span className="text-[9px] uppercase tracking-wider font-extrabold opacity-80">GRUPO 3</span>
-                  <span className="text-xs truncate max-w-[110px] sm:max-w-[180px]">
-                    {activeItem ? activeItem.label : 'Historial & Escalas'}
-                  </span>
-                </div>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform shrink-0 ${openGroup === 'g3' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openGroup === 'g3' && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-[100] bg-black/60 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none" 
-                    onClick={() => setOpenGroup(null)} 
-                  />
-                  <div className="fixed inset-x-3 top-28 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:w-64 z-[110] rounded-2xl bg-slate-900 border border-brand-teal/50 shadow-2xl overflow-hidden py-1 divide-y divide-slate-800">
-                    <div className="px-3.5 py-2 text-[10px] font-mono text-brand-teal font-bold uppercase tracking-wider bg-slate-950/90 flex items-center justify-between">
-                      <span>GRUPO 3 — Historial & Diagnóstico</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setOpenGroup(null);
-                        }}
-                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {g3Items.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setActiveTab(item.id as any);
-                            setOpenGroup(null);
-                          }}
-                          className={`w-full text-left px-4 py-3 sm:py-2.5 text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
-                            isActive
-                              ? 'bg-brand-teal/20 text-brand-teal font-extrabold'
-                              : 'text-slate-200 hover:bg-slate-800 hover:text-white'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Icon className="w-4 h-4 text-brand-teal shrink-0" />
-                            <span>{item.label}</span>
-                          </div>
-                          {isActive && <Check className="w-4 h-4 text-brand-teal shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* SUELTO 1: IA Médica */}
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('ai_medical');
-            setOpenGroup(null);
-          }}
-          className={`shrink-0 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer border ${
-            activeTab === 'ai_medical'
-              ? 'bg-brand-teal text-slate-900 border-brand-teal shadow-lg shadow-brand-teal/20 font-extrabold'
-              : 'bg-slate-900/80 text-cyan-300 hover:text-white hover:bg-slate-800 border-cyan-500/30'
-          }`}
-        >
-          <Bot className="w-4 h-4 text-cyan-400" />
-          <span>IA Médica</span>
-        </button>
-
-        {/* SUELTO 2: Modo Emergencia */}
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('emergency_mode');
-            setOpenGroup(null);
-          }}
-          className={`shrink-0 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer border ${
-            activeTab === 'emergency_mode'
-              ? 'bg-rose-500 text-slate-900 border-rose-500 shadow-lg shadow-rose-500/20 font-extrabold'
-              : 'bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border-rose-500/30'
-          }`}
-        >
-          <HeartPulse className="w-4 h-4 text-rose-400" />
-          <span>⚡ Modo Emergencia</span>
-        </button>
-
-      </div>
-
-      {/* 5. MAIN BODY RENDERER FOR ACTIVE TAB */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        
-        {/* TAB 1: PERFIL DEL PACIENTE */}
-        {activeTab === 'patient_profile' && (
-          activePatient ? (
-            <div className="space-y-6 animate-fade-in">
-              <PatientProfileCard
-                patient={activePatient}
-                onUpdatePatient={handleUpdatePatient}
-                onOpenConsultation={() => setActiveTab('clinical_consultation')}
-                onSaveToEMR={(newEntry) => setEmrEntries([newEntry, ...emrEntries])}
-              />
-              <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
-            </div>
-          ) : (
-            <div className="bg-brand-navy-light/40 border border-slate-800 rounded-3xl p-10 text-center space-y-4 max-w-xl mx-auto my-12 backdrop-blur-md animate-fade-in shadow-2xl">
-              <div className="w-16 h-16 bg-brand-teal/10 border border-brand-teal/20 text-brand-teal rounded-full flex items-center justify-center mx-auto">
-                <User className="w-8 h-8" />
-              </div>
-              <h3 className="text-lg font-bold text-white font-display">Ningún Paciente Seleccionado</h3>
-              <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
-                El perfil de paciente se encuentra actualmente vacío. Seleccione un paciente registrado en el menú superior o registre un nuevo paciente para comenzar la evaluación clínica.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowNewPatientModal(true)}
-                  className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-brand-teal/10"
-                >
-                  <Plus className="w-4 h-4" /> Registrar Nuevo Paciente
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPatientsListModal(true)}
-                  className="bg-white hover:bg-slate-100 text-slate-900 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-slate-200"
-                >
-                  <User className="w-4 h-4 text-brand-navy" /> Ver Lista de Pacientes ({patients.length})
-                </button>
-              </div>
-            </div>
-          )
+        {/* TAB 1: TRATAMIENTO & VADEMÉCUM (PRIMARY COMPONENT) */}
+        {activeTab === 'treatment' && activePatient && (
+          <PatientTreatmentSection
+            patient={activePatient}
+            onSaveToEMR={(newEntry) => setEmrEntries([newEntry, ...emrEntries])}
+            onUpdatePatient={handleUpdatePatient}
+            onOpenNewPatientModal={() => setShowNewPatientModal(true)}
+          />
         )}
 
-        {/* TAB 2: CONSULTA CLÍNICA */}
-        {activeTab === 'clinical_consultation' && (
-          activePatient ? (
-            <div className="space-y-6 animate-fade-in">
-              <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
-              <PrescriptionEngineModule
-                patient={activePatient}
-                medicationsList={medications}
-                onGeneratePrescription={(meds, diag, obs) => {
-                  setActiveTab('documents');
-                }}
-              />
-            </div>
-          ) : (
-            <div className="bg-brand-navy-light/40 border border-slate-800 rounded-3xl p-10 text-center space-y-4 max-w-xl mx-auto my-12 backdrop-blur-md animate-fade-in shadow-2xl">
-              <div className="w-16 h-16 bg-brand-teal/10 border border-brand-teal/20 text-brand-teal rounded-full flex items-center justify-center mx-auto">
-                <FileText className="w-8 h-8" />
-              </div>
-              <h3 className="text-lg font-bold text-white font-display">Ningún Paciente Seleccionado</h3>
-              <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
-                Seleccione un paciente para iniciar la consulta clínica, evaluación de signos vitales y prescripción.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPatientsListModal(true)}
-                  className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <User className="w-4 h-4" /> Seleccionar Paciente
-                </button>
-              </div>
-            </div>
-          )
-        )}
-
-        {/* TAB 3: EVALUACIÓN AUTOMÁTICA */}
-        {activeTab === 'auto_evaluation' && (
-          activePatient ? (
-            <div className="space-y-6 animate-fade-in">
-              <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
-            </div>
-          ) : (
-            <div className="bg-brand-navy-light/40 border border-slate-800 rounded-3xl p-10 text-center space-y-4 max-w-xl mx-auto my-12 backdrop-blur-md animate-fade-in shadow-2xl">
-              <div className="w-16 h-16 bg-brand-teal/10 border border-brand-teal/20 text-brand-teal rounded-full flex items-center justify-center mx-auto">
-                <Activity className="w-8 h-8" />
-              </div>
-              <h3 className="text-lg font-bold text-white font-display">Ningún Paciente Seleccionado</h3>
-              <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
-                Seleccione un paciente para visualizar su tríada de evaluación clínica y semáforo de riesgo.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPatientsListModal(true)}
-                  className="bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <User className="w-4 h-4" /> Seleccionar Paciente
-                </button>
-              </div>
-            </div>
-          )
-        )}
-
-        {/* TAB 4: PRESCRIPCIÓN & VADEMÉCUM */}
-        {activeTab === 'prescription' && (
+        {/* TAB 2: DATOS DEL PACIENTE & VITALS */}
+        {activeTab === 'patient_profile' && activePatient && (
           <div className="space-y-6 animate-fade-in">
-            <PrescriptionEngineModule
+            <PatientProfileCard
               patient={activePatient}
-              medicationsList={medications}
-              onGeneratePrescription={(meds, diag, obs) => {
-                setActiveTab('documents');
-              }}
+              onUpdatePatient={handleUpdatePatient}
+              onOpenConsultation={() => setActiveTab('treatment')}
+              onOpenNewPatientModal={() => setShowNewPatientModal(true)}
+              onSaveToEMR={(newEntry) => setEmrEntries([newEntry, ...emrEntries])}
             />
           </div>
         )}
 
-        {/* TAB 5: DOCUMENTOS Y CERTIFICADOS */}
-        {activeTab === 'documents' && (
+        {/* TAB 3: CONSULTA & EVALUACIÓN */}
+        {activeTab === 'clinical_consultation' && activePatient && (
           <div className="space-y-6 animate-fade-in">
-            <DocumentsCertificationsModule
-              patient={activePatient}
-              documents={documents}
-              doctorName={doctor.name}
-              onCreateDocument={(newDoc) => setDocuments([newDoc, ...documents])}
-            />
+            <AutoEvaluationModule patient={activePatient} onUpdateVitals={handleUpdateVitals} />
           </div>
         )}
 
-        {/* TAB 6: HISTORIAL CLÍNICO (TIMELINE) */}
+        {/* TAB 4: HISTORIAL CLÍNICO (EMR) */}
         {activeTab === 'emr_timeline' && (
           <div className="space-y-6 animate-fade-in">
             <EMRTimelineModule
@@ -1077,107 +702,58 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
           </div>
         )}
 
-        {/* TAB 7: IA MÉDICA */}
-        {activeTab === 'ai_medical' && (
-          <div className="space-y-6 animate-fade-in">
-            <AIMedicalAssistantModule patient={activePatient} />
-          </div>
-        )}
-
-        {/* EXTRA TAB 8: MODO EMERGENCIA */}
-        {activeTab === 'emergency_mode' && (
-          <div className="space-y-6 animate-fade-in">
-            <EmergencyModeModule patient={activePatient} />
-          </div>
-        )}
-
-        {/* EXTRA TAB 9: ESCALAS MÉDICAS */}
+        {/* TAB 5: ESCALAS MÉDICAS */}
         {activeTab === 'medical_scales' && (
           <div className="space-y-6 animate-fade-in">
             <MedicalScalesModule patient={activePatient} />
           </div>
         )}
 
-        {/* EXTRA TAB 10: IMAGENOLOGÍA */}
-        {activeTab === 'imaging' && (
+        {/* TAB 6: IA MÉDICA */}
+        {activeTab === 'ai_medical' && (
           <div className="space-y-6 animate-fade-in">
-            <MedicalImagingModule
-              patient={activePatient}
-              onAddStudy={(study) => {
-                if (activePatient) {
-                  const updated: Patient = {
-                    ...activePatient,
-                    studies: [study, ...(activePatient.studies || [])]
-                  };
-                  handleUpdatePatient(updated);
-                }
-              }}
-            />
+            <AIMedicalAssistantModule patient={activePatient} />
           </div>
         )}
 
-        {/* EXTRA TAB 11: ESTADÍSTICAS */}
-        {activeTab === 'analytics' && (
+        {/* TAB 7: MODO EMERGENCIA */}
+        {activeTab === 'emergency_mode' && (
           <div className="space-y-6 animate-fade-in">
-            <MedicalAnalyticsDashboard
-              patients={patients}
-              activeLicense={{
-                key: doctor.licenseKey,
-                doctorName: doctor.name,
-                username: doctor.username,
-                password: '',
-                purchaseDate: '2026-05-15',
-                status: 'Activa',
-                maxActivations: 1,
-                activatedDeviceId: 'simulated-phone-device'
-              }}
-            />
+            <EmergencyModeModule patient={activePatient} />
           </div>
         )}
 
       </main>
 
-      {/* GLOBAL SEARCH MODAL */}
-      <GlobalSearchModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        patients={patients}
-        medications={medications}
-        protocols={protocols}
-        documents={documents}
-        onSelectPatient={(p) => setActivePatientId(p.id)}
-        onSelectTab={(tab) => setActiveTab(tab as any)}
-      />
-
-      {/* NEW PATIENT CREATION MODAL (16 FIELDS) */}
+      {/* 5. FULL 16-POINTS PATIENT REGISTRATION MODAL */}
       {showNewPatientModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-2xl bg-brand-navy-light border border-slate-800 rounded-3xl p-6 my-8 space-y-5 text-left shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-fade-in">
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-700/80 rounded-3xl p-5 sm:p-6 my-6 space-y-4 text-left shadow-2xl">
             
             <div className="flex justify-between items-start border-b border-slate-800 pb-3">
               <div>
-                <h4 className="text-lg font-bold text-white font-display flex items-center gap-2">
-                  <UserPlus className="w-5 h-5 text-brand-teal" /> Registro Completo de Nuevo Paciente
+                <h4 className="text-base sm:text-lg font-bold text-white font-display flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-brand-teal" /> Registro de Paciente & Signos Vitales
                 </h4>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Los puntos <strong className="text-brand-teal font-semibold">1 al 7 son obligatorios</strong> para crear el expediente. El resto de signos vitales (puntos 8 a 16) pueden completarse progresivamente.
+                  Complete los datos personales y signos vitales para generar automáticamente el tratamiento personalizado.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowNewPatientModal(false)}
-                className="text-slate-400 hover:text-white font-bold text-xs bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-xl cursor-pointer"
+                className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-xl cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-4 text-xs max-h-[70vh] overflow-y-auto pr-1">
+            <div className="space-y-4 text-xs max-h-[65vh] overflow-y-auto pr-1">
               
               {/* SECTION A: MANDATORY FIELDS (Puntos 1 a 7) */}
-              <div className="bg-slate-900/90 border border-brand-teal/30 rounded-2xl p-4 space-y-3">
+              <div className="bg-slate-950/80 border border-brand-teal/30 rounded-2xl p-4 space-y-3">
                 <span className="text-[10px] font-bold text-brand-teal uppercase tracking-wider block border-b border-slate-800 pb-1.5">
-                  Campos Obligatorios (Puntos 1 a 7)
+                  1. Datos Personales Obligatorios (Puntos 1 a 7)
                 </span>
 
                 {/* Point 1: Adulto o Niño */}
@@ -1190,7 +766,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                       className={`py-2 px-3 rounded-xl border font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         newCategory === 'ADULTO'
                           ? 'bg-sky-500/20 border-sky-400 text-sky-200 ring-1 ring-sky-400/50'
-                          : 'bg-slate-950 border-slate-800 text-slate-400'
+                          : 'bg-slate-900 border-slate-800 text-slate-400'
                       }`}
                     >
                       <User className="w-4 h-4" /> ADULTO
@@ -1202,7 +778,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                       className={`py-2 px-3 rounded-xl border font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         newCategory === 'PEDIÁTRICO'
                           ? 'bg-amber-500/20 border-amber-400 text-amber-200 ring-1 ring-amber-400/50'
-                          : 'bg-slate-950 border-slate-800 text-slate-400'
+                          : 'bg-slate-900 border-slate-800 text-slate-400'
                       }`}
                     >
                       <Baby className="w-4 h-4" /> NIÑO (PEDIÁTRICO)
@@ -1210,15 +786,15 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                   </div>
                 </div>
 
-                {/* Point 2: Nombre y Apellido */}
+                {/* Point 2: Nombre */}
                 <div>
-                  <label className="text-slate-300 font-bold block mb-1">2. Nombre y Apellido Completo (Opcional)</label>
+                  <label className="text-slate-300 font-bold block mb-1">2. Nombre y Apellido Completo</label>
                   <input
                     type="text"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Ej. Carmen María Delgado (Opcional)"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium"
+                    placeholder="Ej. Carmen María Delgado"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium"
                   />
                 </div>
 
@@ -1234,7 +810,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                         setNewAge(val);
                         if (typeof val === 'number' && val < 15) setNewCategory('PEDIÁTRICO');
                       }}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
                     />
                   </div>
 
@@ -1247,7 +823,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                       value={newWeight}
                       onChange={(e) => setNewWeight(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="Ej. 68.5"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-brand-teal font-bold font-mono"
                     />
                   </div>
 
@@ -1259,7 +835,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                       value={newHeight}
                       onChange={(e) => setNewHeight(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="Ej. 165"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
                     />
                   </div>
                 </div>
@@ -1271,7 +847,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                     <select
                       value={newBloodGroup}
                       onChange={(e) => setNewBloodGroup(e.target.value as BloodGroup)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
                     >
                       {['O+', 'A+', 'B+', 'AB+', 'O-', 'A-', 'B-', 'AB-'].map(bg => (
                         <option key={bg} value={bg}>{bg}</option>
@@ -1281,11 +857,11 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
                   {/* Point 7: Estado Hospitalario */}
                   <div>
-                    <label className="text-slate-300 font-bold block mb-1">7. Estado Hospitalario *</label>
+                    <label className="text-slate-300 font-bold block mb-1">7. Estado Clínico *</label>
                     <select
                       value={newStatus}
                       onChange={(e) => setNewStatus(e.target.value as PatientStatus)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold"
                     >
                       <option value="Estable">Estable</option>
                       <option value="Observación">Observación</option>
@@ -1295,7 +871,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-800/80 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-800 pt-2">
                   <div>
                     <label className="text-slate-400 font-semibold block mb-1">Cédula / Identificación (Opcional)</label>
                     <input
@@ -1303,7 +879,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                       value={newCardId}
                       onChange={(e) => setNewCardId(e.target.value)}
                       placeholder="Ej. 0928172635"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-xs"
                     />
                   </div>
 
@@ -1312,7 +888,7 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                     <select
                       value={newSex}
                       onChange={(e) => setNewSex(e.target.value as 'M' | 'F')}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white text-xs"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-white text-xs"
                     >
                       <option value="F">Femenino</option>
                       <option value="M">Masculino</option>
@@ -1322,89 +898,82 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
               </div>
 
-              {/* SECTION B: OPTIONAL VITAL SIGNS & GLASGOW (Puntos 8 a 16) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+              {/* SECTION B: VITAL SIGNS & GLASGOW (Puntos 8 a 16) */}
+              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-800 pb-1.5">
-                  Signos Vitales Iniciales y Escala de Glasgow (Puntos 8 a 16 - Completar opcionalmente)
+                  2. Signos Vitales y Estado Inicial (Puntos 8 a 16)
                 </span>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {/* Point 8: FC */}
                   <div>
-                    <label className="text-slate-400 font-semibold block mb-1">8. Frec. Cardíaca (bpm)</label>
+                    <label className="text-slate-400 font-semibold block mb-1">8. FC (lpm)</label>
                     <input
                       type="number"
                       value={newHeartRate}
                       onChange={(e) => setNewHeartRate(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="80"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
                     />
                   </div>
 
-                  {/* Point 9: PA */}
                   <div>
-                    <label className="text-slate-400 font-semibold block mb-1">9. P. Arterial (mmHg)</label>
+                    <label className="text-slate-400 font-semibold block mb-1">9. PA (mmHg)</label>
                     <input
                       type="text"
                       value={newBloodPressure}
                       onChange={(e) => setNewBloodPressure(e.target.value)}
                       placeholder="120/80"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
                     />
                   </div>
 
-                  {/* Point 10: Temp */}
                   <div>
-                    <label className="text-slate-400 font-semibold block mb-1">10. Temperatura (°C)</label>
+                    <label className="text-slate-400 font-semibold block mb-1">10. T° (°C)</label>
                     <input
                       type="number"
                       step="0.1"
                       value={newTemperature}
                       onChange={(e) => setNewTemperature(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="36.5"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
                     />
                   </div>
 
-                  {/* Point 11: SpO2 */}
                   <div>
-                    <label className="text-slate-400 font-semibold block mb-1">11. Saturación SpO2 (%)</label>
+                    <label className="text-slate-400 font-semibold block mb-1">11. SpO2 (%)</label>
                     <input
                       type="number"
                       value={newOxygenSat}
                       onChange={(e) => setNewOxygenSat(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="98"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
                     />
                   </div>
 
-                  {/* Point 12: FR */}
                   <div>
-                    <label className="text-slate-400 font-semibold block mb-1">12. Frec. Resp. (rpm)</label>
+                    <label className="text-slate-400 font-semibold block mb-1">12. FR (rpm)</label>
                     <input
                       type="number"
                       value={newRespRate}
                       onChange={(e) => setNewRespRate(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="16"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
                     />
                   </div>
 
-                  {/* Point 13: Escala Dolor */}
                   <div>
-                    <label className="text-slate-400 font-semibold block mb-1">13. Escala Dolor EVA (0-10)</label>
+                    <label className="text-slate-400 font-semibold block mb-1">13. Dolor EVA (0-10)</label>
                     <input
                       type="number"
-                      min="0"
-                      max="10"
+                      min={0}
+                      max={10}
                       value={newPainScale}
                       onChange={(e) => setNewPainScale(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="0"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
                     />
                   </div>
 
-                  {/* Point 14: Glucemia Capilar */}
                   <div>
                     <label className="text-slate-400 font-semibold block mb-1">14. Glucemia (mg/dL)</label>
                     <input
@@ -1412,11 +981,10 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                       value={newGlychemia}
                       onChange={(e) => setNewGlychemia(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="100"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
                     />
                   </div>
 
-                  {/* Point 15: Diuresis Horaria */}
                   <div>
                     <label className="text-slate-400 font-semibold block mb-1">15. Diuresis (mL/h)</label>
                     <input
@@ -1424,58 +992,55 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                       value={newDiuresis}
                       onChange={(e) => setNewDiuresis(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="60"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white font-mono"
                     />
                   </div>
                 </div>
 
-                {/* Point 16: ESCALA DE COMA DE GLASGOW COMPLETA (04 VSM6) */}
-                <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2 mt-2">
+                {/* Point 16: Glasgow */}
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 mt-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      16. Escala de Coma de Glasgow Completa (04 VSM6)
-                    </span>
-                    <span className="text-xs font-mono font-bold bg-brand-teal/20 text-brand-teal px-2 py-0.5 rounded border border-brand-teal/30">
-                      Total: {newGlasgowOcular + newGlasgowVerbal + newGlasgowMotor} / 15
+                    <span className="text-xs font-bold text-white">
+                      16. Escala de Glasgow ({newGlasgowOcular + newGlasgowVerbal + newGlasgowMotor} / 15)
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                     <div>
-                      <label className="text-slate-400 font-semibold block mb-1">Respuesta Ocular (1-4)</label>
+                      <label className="text-slate-400 font-semibold block mb-1">Ocular (1-4)</label>
                       <select
                         value={newGlasgowOcular}
                         onChange={(e) => setNewGlasgowOcular(Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-white font-mono"
                       >
                         <option value={4}>O4: Espontánea (4 pt)</option>
-                        <option value={3}>O3: A la orden verbal (3 pt)</option>
+                        <option value={3}>O3: A la voz (3 pt)</option>
                         <option value={2}>O2: Al dolor (2 pt)</option>
                         <option value={1}>O1: Nula (1 pt)</option>
                       </select>
                     </div>
 
                     <div>
-                      <label className="text-slate-400 font-semibold block mb-1">Respuesta Verbal (1-5)</label>
+                      <label className="text-slate-400 font-semibold block mb-1">Verbal (1-5)</label>
                       <select
                         value={newGlasgowVerbal}
                         onChange={(e) => setNewGlasgowVerbal(Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-white font-mono"
                       >
                         <option value={5}>V5: Orientada (5 pt)</option>
-                        <option value={4}>V4: Desorientada (4 pt)</option>
-                        <option value={3}>V3: Inapropiada (3 pt)</option>
-                        <option value={2}>V2: Incomprensible (2 pt)</option>
+                        <option value={4}>V4: Confusa (4 pt)</option>
+                        <option value={3}>V3: Palabras inapropiadas (3 pt)</option>
+                        <option value={2}>V2: Sonidos incomprensibles (2 pt)</option>
                         <option value={1}>V1: Nula (1 pt)</option>
                       </select>
                     </div>
 
                     <div>
-                      <label className="text-slate-400 font-semibold block mb-1">Respuesta Motora (1-6)</label>
+                      <label className="text-slate-400 font-semibold block mb-1">Motora (1-6)</label>
                       <select
                         value={newGlasgowMotor}
                         onChange={(e) => setNewGlasgowMotor(Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-white font-mono"
                       >
                         <option value={6}>M6: Obedece órdenes (6 pt)</option>
                         <option value={5}>M5: Localiza dolor (5 pt)</option>
@@ -1492,12 +1057,13 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
 
             </div>
 
+            {/* Bottom Actions */}
             <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-800">
               <span className="text-[11px] font-mono text-slate-400">
                 {isMandatoryValid ? (
-                  <span className="text-emerald-400 font-bold">✓ Datos listos para crear perfil</span>
+                  <span className="text-emerald-400 font-bold">✓ Datos completos para prescripción</span>
                 ) : (
-                  <span className="text-amber-400 font-bold">⚠️ Complete edad, peso y talla</span>
+                  <span className="text-amber-400 font-bold">⚠️ Ingrese edad, peso y talla</span>
                 )}
               </span>
 
@@ -1514,13 +1080,14 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
                   type="button"
                   onClick={handleCreatePatient}
                   disabled={!isMandatoryValid}
-                  className={`font-bold px-5 py-2.5 rounded-xl text-xs cursor-pointer transition-all ${
+                  className={`font-extrabold px-5 py-2.5 rounded-xl text-xs cursor-pointer transition-all flex items-center gap-1.5 ${
                     isMandatoryValid
                       ? 'bg-brand-teal hover:bg-brand-teal-pastel text-slate-900 shadow-md shadow-brand-teal/20'
                       : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                   }`}
                 >
-                  Crear Perfil Completo de Paciente
+                  <span>Guardar y Crear Tratamiento</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1529,20 +1096,35 @@ export default function Dashboard({ doctor, onLogout }: DashboardProps) {
         </div>
       )}
 
-      {/* PATIENTS LIST MODAL */}
+      {/* 6. GLOBAL SEARCH MODAL */}
+      <GlobalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        patients={patients}
+        medications={medications}
+        protocols={protocols}
+        documents={[]}
+        onSelectPatient={(p) => setActivePatientId(p.id)}
+        onSelectTab={(tab) => setActiveTab(tab as any)}
+      />
+
+      {/* 7. PATIENTS LIST MODAL */}
       <PatientsListModal
         isOpen={showPatientsListModal}
         onClose={() => setShowPatientsListModal(false)}
         patients={patients}
         activePatientId={activePatientId}
-        onSelectPatient={(id) => setActivePatientId(id)}
+        onSelectPatient={(id) => {
+          setActivePatientId(id);
+          setActiveTab('treatment');
+        }}
         onDeletePatient={handleDeletePatient}
         onOpenNewPatientModal={() => setShowNewPatientModal(true)}
       />
 
       {/* FOOTER */}
-      <footer className="border-t border-slate-800 py-4 text-center text-xs text-slate-500 font-mono">
-        DOSIA Clinical Software 2026 • Sistema Médico Certificado • Creado por Andrey Design
+      <footer className="border-t border-slate-800/80 py-3 text-center text-[11px] text-slate-500 font-mono">
+        DOSIA 2026 • Plataforma Clínica Inteligente First-Mobile
       </footer>
 
     </div>
